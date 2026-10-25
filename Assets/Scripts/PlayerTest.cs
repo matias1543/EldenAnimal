@@ -11,7 +11,7 @@ using UnityEngine;
 /// </summary>
 [RequireComponent(typeof(CharacterController))]
 [RequireComponent(typeof(Health))]
-public class PlayerController : MonoBehaviour
+public class PlayerTest : MonoBehaviour
 {
     [Header("Movement")]
     [SerializeField] private float _moveSpeed = 5f;
@@ -62,25 +62,52 @@ public class PlayerController : MonoBehaviour
     /// <summary>
     /// Mueve al jugador utilizando WASD.
     /// </summary>
+
     private void Move()
     {
+        // Obtenemos el movimiento del teclado.
         float horizontal = Input.GetAxisRaw("Horizontal");
         float vertical = Input.GetAxisRaw("Vertical");
 
-        Vector3 direction = new Vector3(horizontal, 0f, vertical);
+        // Obtenemos la cámara principal.
+        Camera mainCamera = Camera.main;
 
-        // Evitamos moverse más rápido en diagonal.
+        if (mainCamera == null)
+            return;
+
+        // Obtenemos las direcciones de la cámara.
+        Vector3 forward = mainCamera.transform.forward;
+        Vector3 right = mainCamera.transform.right;
+
+        // Eliminamos la inclinación vertical.
+        // El personaje solo debe moverse sobre el suelo.
+        forward.y = 0f;
+        right.y = 0f;
+
+        // Normalizamos las direcciones.
+        forward.Normalize();
+        right.Normalize();
+
+        // Calculamos el movimiento relativo a la cámara.
+        Vector3 direction =
+            forward * vertical +
+            right * horizontal;
+
+        // Evitamos que el movimiento diagonal sea más rápido.
         direction = Vector3.ClampMagnitude(direction, 1f);
 
-        // Movemos al jugador.
-        _controller.Move(direction * _moveSpeed * Time.deltaTime);
+        // Movemos al personaje.
+        _controller.Move(
+            direction * _moveSpeed * Time.deltaTime
+        );
 
-        // Rotamos al jugador en la dirección del movimiento.
+        // Rotamos al personaje hacia donde camina.
         if (direction.sqrMagnitude > 0.01f)
         {
             transform.rotation = Quaternion.LookRotation(direction);
         }
     }
+
 
     /// <summary>
     /// Se ejecuta cuando Health notifica la muerte.
