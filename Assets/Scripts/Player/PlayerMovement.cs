@@ -4,7 +4,7 @@
  Email: marcosfvizio@gmail.com
 
  Creation Date: 2026-10-26 13:57:26
- Last Modification Date: 2026-10-27 02:15:59
+ Last Modification Date: 2026-10-28 03:23:57
 
  Another File Header is a Visual Studio Code extension to automatically or by command insert a header to your files.
 
@@ -21,10 +21,13 @@ public class PlayerMovement : MonoBehaviour
 
     [Header("Movement")]
     [SerializeField] private float _moveSpeed = 5f;
+    [SerializeField] private float _gravity = -20f; //Es la aceleracion hacia abajo en m/s².
 
+
+    private const float GroundedVerticalVelocity = -2f; //Empuja con esta velocidad hacia el piso
     private CharacterController _characterController;
-
     private Transform _cameraTransform;
+    private float _verticalVelocity;
 
     private void Awake()
     {
@@ -68,10 +71,21 @@ public class PlayerMovement : MonoBehaviour
         //Para dibujar la direccion del movimiento y ver si funciona
         Debug.DrawRay(transform.position, direction, Color.blue);
 
+        ApplyGravity();
+
         Vector3 motion = direction * _moveSpeed * Time.deltaTime;
+
+        motion.y = _verticalVelocity * Time.deltaTime;
 
         _characterController.Move(motion);
 
+    }
+
+    private void ApplyGravity()
+    {
+        if (_characterController.isGrounded) _verticalVelocity = GroundedVerticalVelocity;
+
+        _verticalVelocity += _gravity * Time.deltaTime; 
     }
 
     private Vector3 GetCameraRelativeDirection(Vector2 input)
