@@ -12685,11 +12685,11 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 2066896392038131574, guid: 45288819fde2143449a96207b14db0bb, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 59.27598
+      value: 60.01
       objectReference: {fileID: 0}
     - target: {fileID: 2066896392038131574, guid: 45288819fde2143449a96207b14db0bb, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -3.8
+      value: -3.97
       objectReference: {fileID: 0}
     - target: {fileID: 2066896392038131574, guid: 45288819fde2143449a96207b14db0bb, type: 3}
       propertyPath: m_LocalPosition.z
@@ -13077,13 +13077,13 @@ CharacterController:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Height: 2
+  m_Height: 1.5
   m_Radius: 0.5
   m_SlopeLimit: 45
   m_StepOffset: 0.3
   m_SkinWidth: 0.08
   m_MinMoveDistance: 0.001
-  m_Center: {x: 0, y: 0.7, z: 0}
+  m_Center: {x: 0, y: 0.76, z: 0}
 --- !u!114 &268725094
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -13098,6 +13098,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerMovement
   _moveAction: {fileID: -1680190386980627800, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   _moveSpeed: 5
+  _gravity: -20
 --- !u!114 &268725095
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -13110,6 +13111,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0d571f6c8d56c954bb849b9feb230e39, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerAim
+  _rotationSpeed: 1080
 --- !u!1001 &269901186
 PrefabInstance:
   m_ObjectHideFlags: 0
