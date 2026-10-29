@@ -33,6 +33,7 @@ public class HealthBar : MonoBehaviour
     private void Start()
     {
         if (_health == null) return;
+        if (_fillImage == null) return;
         HandleHealthChanged(_health.CurrentHealth, _health.MaxHealth);
     }
 
