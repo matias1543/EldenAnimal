@@ -13100,8 +13100,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerMovement
   _moveAction: {fileID: -1680190386980627800, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  _sprintAction: {fileID: -7471211009204490832, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   _moveSpeed: 5
   _gravity: -20
+  _sprintMultiplier: 1.8
+  _sprintStaminaPerSecond: 25
 --- !u!114 &268725095
 MonoBehaviour:
   m_ObjectHideFlags: 0
