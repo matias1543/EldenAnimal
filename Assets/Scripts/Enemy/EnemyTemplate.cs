@@ -8,6 +8,7 @@ using UnityEngine.AI;
 public enum EnemyState
 {
     Idle,
+    Patrol,
     Chase,
     Attack,
     Death
@@ -59,7 +60,30 @@ public abstract class EnemyTemplate : MonoBehaviour
     // Velocidad de desplazamiento del enemigo.
     [SerializeField] private float _moveSpeed = 3.5f;
 
+    [Header("Patrol")]
 
+    // Activa o desactiva el patrullaje.
+    [SerializeField] private bool _enablePatrol = true;
+
+    // Puntos que recorrerá el enemigo en orden.
+    [SerializeField] private Transform[] _patrolPoints;
+
+    // Tiempo que espera al llegar a cada punto.
+    [SerializeField] private float _waitTime = 2f;
+
+    // Distancia a la que consideramos que llegó al punto.
+    [SerializeField] private float _arrivalDistance = 0.5f;
+
+    // Índice del punto que debe visitar.
+    private int _currentPatrolIndex;
+
+    // Momento en el que termina la espera.
+    private float _waitUntil;
+
+    // Indica si está esperando en un punto.
+    private bool _waitingAtPoint;
+
+    // Momento en el que puede atacar nuevamente.
     private float _nextAttackTime;
 
     // Evita ejecutar la secuencia de muerte más de una vez.
@@ -92,7 +116,12 @@ public abstract class EnemyTemplate : MonoBehaviour
         }
         else
         {
-            Debug.LogError("Player not found. Check the Player tag.");
+            Debug.LogError("Player not found.");
+        }
+        // Si tiene patrullaje configurado, empieza patrullando.
+        if (HasPatrolPoints())
+        {
+            ChangeState(EnemyState.Patrol);
         }
     }
 
@@ -111,12 +140,21 @@ public abstract class EnemyTemplate : MonoBehaviour
     /// mantener referencias innecesarias.
     protected virtual void OnDisable()
     {
-        _health.OnDeath -= HandleDeath;
+        if (_health != null)
+        {
+            _health.OnDeath -= HandleDeath;
+        }
     }
-
 
     protected virtual void Update()
     {
+        // La muerte debe procesarse incluso si no existe el jugador.
+        if (_currentState == EnemyState.Death)
+        {
+            UpdateDeathState();
+            return;
+        }
+
         if (_player == null)
             return;
 
@@ -124,6 +162,10 @@ public abstract class EnemyTemplate : MonoBehaviour
         {
             case EnemyState.Idle:
                 UpdateIdleState();
+                break;
+
+            case EnemyState.Patrol:
+                UpdatePatrolState();
                 break;
 
             case EnemyState.Chase:
@@ -147,23 +189,43 @@ public abstract class EnemyTemplate : MonoBehaviour
     /// acciones al entrar o salir de cada estado.
     protected void ChangeState(EnemyState newState)
     {
-        // Evitamos cambiar al mismo estado innecesariamente.
         if (_currentState == newState)
             return;
 
-        // Actualizamos el estado actual.
+        // Al salir de Patrol, cancelamos cualquier espera.
+        if (_currentState == EnemyState.Patrol)
+        {
+            _waitingAtPoint = false;
+        }
+
         _currentState = newState;
+    }
+    /// <summary>
+    /// Comprueba si el patrullaje está activado
+    /// y existen puntos configurados.
+    /// </summary>
+    private bool HasPatrolPoints()
+    {
+        return _enablePatrol && _patrolPoints != null && _patrolPoints.Length > 0;
     }
 
     private void UpdateIdleState()
     {
+        _agent.isStopped = true;
         SetMoving(false);
 
         float distance = Vector3.Distance(transform.position, _player.position);
 
+        // La detección tiene prioridad sobre el patrullaje.
         if (distance <= _detectionRange)
         {
             ChangeState(EnemyState.Chase);
+            return;
+        }
+
+        if (HasPatrolPoints())
+        {
+            ChangeState(EnemyState.Patrol);
         }
     }
 
@@ -199,6 +261,109 @@ public abstract class EnemyTemplate : MonoBehaviour
         SetMoving(true);
     }
 
+    /// <summary>
+    /// Estado Patrol.
+    ///
+    /// Recorre los puntos configurados en orden.
+    /// Al llegar a cada uno, espera unos segundos.
+    /// Si detecta al jugador, interrumpe la patrulla.
+    /// </summary>
+    private void UpdatePatrolState()
+    {
+        // Comprobamos si el jugador está cerca.
+        float distance = Vector3.Distance(
+            transform.position,
+            _player.position
+        );
+
+        if (distance <= _detectionRange)
+        {
+            ChangeState(EnemyState.Chase);
+            return;
+        }
+
+        // Si no hay puntos, volvemos a Idle.
+        if (!HasPatrolPoints())
+        {
+            ChangeState(EnemyState.Idle);
+            return;
+        }
+
+        // Si estamos esperando, comprobamos el tiempo.
+        if (_waitingAtPoint)
+        {
+            _agent.isStopped = true;
+            SetMoving(false);
+
+            if (Time.time < _waitUntil)
+                return;
+
+            // Terminó la espera: avanzamos al siguiente punto.
+            _waitingAtPoint = false;
+
+            _currentPatrolIndex = (_currentPatrolIndex + 1) % _patrolPoints.Length;
+        }
+
+        // Obtenemos el punto actual.
+        Transform point = _patrolPoints[_currentPatrolIndex];
+
+        if (point == null)
+        {
+            // Saltamos puntos que no estén asignados.
+            _currentPatrolIndex =
+                (_currentPatrolIndex + 1) % _patrolPoints.Length;
+
+            _agent.isStopped = true;
+            SetMoving(false);
+            return;
+        }
+
+        // En patrullaje queremos llegar hasta el punto.
+        _agent.stoppingDistance = 0f;
+        _agent.isStopped = false;
+
+        // Indicamos el destino al NavMeshAgent.
+        if (!_agent.SetDestination(point.position))
+        {
+            _agent.isStopped = true;
+            SetMoving(false);
+            return;
+        }
+
+        // Mientras se calcula la ruta, esperamos.
+        if (_agent.pathPending)
+        {
+            SetMoving(false);
+            return;
+        }
+
+        // Si el agente no tiene una ruta completa,
+        // evitamos tratarlo como una llegada válida.
+        if (_agent.pathStatus != NavMeshPathStatus.PathComplete)
+        {
+            _agent.isStopped = true;
+            SetMoving(false);
+            return;
+        }
+
+        // Comprobamos si llegó al destino.
+        if (_agent.remainingDistance <= _arrivalDistance)
+        {
+            // Detenemos al enemigo.
+            _agent.isStopped = true;
+            SetMoving(false);
+
+            // Comenzamos la espera.
+            _waitingAtPoint = true;
+            _waitUntil = Time.time + _waitTime;
+
+            return;
+        }
+
+        // Activamos la animación de caminar.
+        SetMoving(true);
+    }
+
     protected virtual void UpdateAttackState()
     {
         float distance = Vector3.Distance(
@@ -216,8 +381,7 @@ public abstract class EnemyTemplate : MonoBehaviour
         {
             Attack();
 
-            _nextAttackTime =
-                Time.time + _attackCooldown;
+            _nextAttackTime = Time.time + _attackCooldown;
         }
     }
 

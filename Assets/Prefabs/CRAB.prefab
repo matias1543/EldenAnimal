@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 906943954275272588}
-  m_Layer: 31
+  m_Layer: 14
   m_Name: Leg_Front.L
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -40,7 +40,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8830500574405311518}
-  m_Layer: 31
+  m_Layer: 14
   m_Name: Leg_Back.R
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -71,7 +71,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 55826802586406504}
-  m_Layer: 31
+  m_Layer: 14
   m_Name: Claw.R
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -102,7 +102,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4234064864010306062}
-  m_Layer: 31
+  m_Layer: 14
   m_Name: Root
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -143,7 +143,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 7387049520868634709}
-  m_Layer: 31
+  m_Layer: 14
   m_Name: Leg_MidBack.R
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -174,7 +174,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6968360364450279651}
-  m_Layer: 31
+  m_Layer: 14
   m_Name: Crab_Rig
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -206,7 +206,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5993981711266147910}
-  m_Layer: 31
+  m_Layer: 14
   m_Name: Leg_MidFront.R
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -242,7 +242,7 @@ GameObject:
   - component: {fileID: 2898239420483340849}
   - component: {fileID: 2040684738571749927}
   - component: {fileID: -3259948827528147341}
-  m_Layer: 31
+  m_Layer: 14
   m_Name: CRAB
   m_TagString: Enemy
   m_Icon: {fileID: 0}
@@ -257,14 +257,14 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3235482411871262983}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -1, z: -0, w: 0}
-  m_LocalPosition: {x: 59.173668, y: -3.383155, z: -31.889843}
+  m_LocalRotation: {x: 0.9996947, y: 0.02470868, z: -0, w: 0}
+  m_LocalPosition: {x: 59.169613, y: -3.125383, z: -31.889843}
   m_LocalScale: {x: 0.09, y: 0.09, z: 0.09}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 8890537131309961681}
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: -180, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: -180, z: -182.832}
 --- !u!65 &6074018508033818697
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -359,6 +359,10 @@ MonoBehaviour:
   _attackRange: 2
   _attackCooldown: 1.2
   _moveSpeed: 1
+  _enablePatrol: 1
+  _patrolPoints: []
+  _waitTime: 2
+  _arrivalDistance: 0.5
   _damage: 1
 --- !u!1 &4287797026797550552
 GameObject:
@@ -370,7 +374,7 @@ GameObject:
   m_Component:
   - component: {fileID: 961559921932639272}
   - component: {fileID: 2265940855508079914}
-  m_Layer: 31
+  m_Layer: 14
   m_Name: Crab
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -473,7 +477,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 315052943499764251}
-  m_Layer: 31
+  m_Layer: 14
   m_Name: Claw.L
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -504,7 +508,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 3361601343095002059}
-  m_Layer: 31
+  m_Layer: 14
   m_Name: Leg_MidFront.L
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -535,7 +539,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 3770134483889804048}
-  m_Layer: 31
+  m_Layer: 14
   m_Name: Leg_Back.L
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -566,7 +570,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4972527849654413514}
-  m_Layer: 31
+  m_Layer: 14
   m_Name: Leg_Front.R
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -597,7 +601,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6991706343470442729}
-  m_Layer: 31
+  m_Layer: 14
   m_Name: Leg_MidBack.L
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -629,7 +633,7 @@ GameObject:
   m_Component:
   - component: {fileID: 8890537131309961681}
   - component: {fileID: 3279083140514794411}
-  m_Layer: 31
+  m_Layer: 14
   m_Name: Crab_Rigged_Unity
   m_TagString: Untagged
   m_Icon: {fileID: 0}
