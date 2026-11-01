@@ -77,9 +77,12 @@ public static class MatiasGemLevelBuilder
         GameObject chestPrefab = BuildChestPrefab();
         Vector3 spawn = player.transform.position;
 
+        // Todo lo que se coloque tiene que ser alcanzable caminando desde el inicio.
+        ReachableOrigin = SampleNavMesh(spawn);
+
         foreach ((string chestName, Vector3 approx, string[] guards) in Zones)
         {
-            Vector3 chestPosition = SampleNavMesh(approx);
+            Vector3 chestPosition = SampleReachable(approx);
             GameObject chest = FindByName(scene, chestName);
 
             if (chest == null)
@@ -104,7 +107,7 @@ public static class MatiasGemLevelBuilder
 
                 float angle = i * Mathf.PI * 2f / guards.Length;
                 Vector3 offset = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * 4f;
-                guard.transform.position = SampleNavMesh(chestPosition + offset);
+                guard.transform.position = SampleReachable(chestPosition + offset);
             }
 
             Debug.Log($"{chestName} en {chestPosition}");
@@ -395,6 +398,58 @@ public static class MatiasGemLevelBuilder
 
         Debug.LogWarning($"Sin NavMesh cerca de {position}: se deja en esa posición.");
         return position;
+    }
+
+    // Punto de inicio del jugador sobre el NavMesh (lo fija Build).
+    internal static Vector3? ReachableOrigin;
+
+    private static readonly float[] HeightProbes = { 0f, -2.5f, 2.5f, -5f };
+
+    /// <summary>
+    /// Como SampleNavMesh, pero solo acepta puntos a los que se llega caminando
+    /// desde el inicio. Si el punto pedido no es alcanzable, busca el más cercano que sí lo sea.
+    /// </summary>
+    internal static Vector3 SampleReachable(Vector3 approx)
+    {
+        if (ReachableOrigin == null)
+            return SampleNavMesh(approx);
+
+        NavMeshPath path = new NavMeshPath();
+
+        for (float radius = 0f; radius <= 24f; radius += 3f)
+        {
+            int steps = radius == 0f ? 1 : 12;
+
+            for (int i = 0; i < steps; i++)
+            {
+                float angle = i * Mathf.PI * 2f / steps;
+                Vector3 candidate = approx + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * radius;
+
+                foreach (float dy in HeightProbes)
+                {
+                    if (!NavMesh.SamplePosition(candidate + Vector3.up * (dy + 1f), out NavMeshHit hit, 2f, NavMesh.AllAreas))
+                        continue;
+
+                    if (!IsReachable(ReachableOrigin.Value, hit.position, path))
+                        continue;
+
+                    if (radius > 0f)
+                    {
+                        Debug.Log($"{approx} no era alcanzable: se movió a {hit.position}.");
+                    }
+
+                    return hit.position;
+                }
+            }
+        }
+
+        Debug.LogWarning($"No hay ningún punto alcanzable cerca de {approx}.");
+        return SampleNavMesh(approx);
+    }
+
+    internal static bool IsReachable(Vector3 from, Vector3 to, NavMeshPath path)
+    {
+        return NavMesh.CalculatePath(from, to, NavMesh.AllAreas, path) && path.status == NavMeshPathStatus.PathComplete;
     }
 
     private static InputActionReference FindInputAction(string map, string action)

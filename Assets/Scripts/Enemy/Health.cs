@@ -25,9 +25,13 @@ public class Health : MonoBehaviour, IDamageable
     // Permite que cada objeto decida qué hacer al morir.
     public event Action OnDeath;
 
+    // Componentes que pueden reducir el daño (por ejemplo, el escudo del jugador).
+    private IDamageModifier[] _damageModifiers;
+
     private void Awake()
     {
         _currentHealth = _maxHealth;
+        _damageModifiers = GetComponents<IDamageModifier>();
     }
 
     public void TakeDamage(float damage)
@@ -36,6 +40,16 @@ public class Health : MonoBehaviour, IDamageable
         if (IsDead)
             return;
         // Evitamos recibir daño cero o negativo.
+        if (damage <= 0f)
+            return;
+
+        // Dejamos que los modificadores (escudo, etc.) ajusten el daño.
+        foreach (IDamageModifier modifier in _damageModifiers)
+        {
+            damage = modifier.ModifyDamage(damage);
+        }
+
+        // Un modificador pudo anular el daño por completo.
         if (damage <= 0f)
             return;
         // Restamos el daño recibido a la vida actual.

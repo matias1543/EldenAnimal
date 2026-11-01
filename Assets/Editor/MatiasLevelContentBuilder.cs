@@ -42,6 +42,23 @@ public static class MatiasLevelContentBuilder
     private const string MinimapTexturePath = "Assets/Materials/Level/Minimap.renderTexture";
     private const string MinimapLayerName = "Minimap";
 
+    private const string DataFolder = "Assets/Data";
+    private const string SmallPotionPath = DataFolder + "/Potion_Small.asset";
+    private const string BigPotionPath = DataFolder + "/Potion_Big.asset";
+    private const string PotionPrefabPath = "Assets/Prefabs/Potion.prefab";
+    private const string DefendClipPath = "Assets/Assets importados/DogKnight/Animations/Defend.anim";
+
+    // Pociones sueltas a lo largo del recorrido (true = poción grande).
+    private static readonly (Vector3 position, bool big)[] PotionSpots =
+    {
+        (new Vector3(55f,  -2.5f, -36f), false),
+        (new Vector3(40f,  -2.5f, -52f), false),
+        (new Vector3(35f,   0f,   -12f), false),
+        (new Vector3(37f,   0f,    22f), true),
+        (new Vector3(4f,    5f,    23f), false),
+        (new Vector3(-12f,  7.5f,  24f), true),
+    };
+
     private enum EnemyKind { Slime, Crab, Turtle, Bird }
 
     // Grupos de enemigos a lo largo del recorrido: Playa -> Camino del Este -> Puente -> Mesetas -> Cima.
@@ -80,8 +97,10 @@ public static class MatiasLevelContentBuilder
         };
 
         SpawnPathEnemies(scene, prefabs);
+        BuildPotionsAndBlock(scene);
         BuildMinimap(scene, minimapLayer);
         ValidatePaths(scene);
+        WriteReachabilityMap(scene);
 
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
@@ -152,6 +171,82 @@ public static class MatiasLevelContentBuilder
         }
     }
 
+    /// <summary>
+    /// Escribe en Logs/TestMatias_MapaCaminos.txt un mapa visto desde arriba (norte arriba)
+    /// que muestra qué zonas se pueden recorrer caminando desde el inicio y a qué altura.
+    /// </summary>
+    private static void WriteReachabilityMap(Scene scene)
+    {
+        const float min = -56f, max = 56f, step = 2f;
+        float[] levels = { -2.5f, 0f, 2.5f, 5f, 7.5f, 10f, 12.5f };
+
+        Vector3 origin = G.SampleNavMesh(G.Find<PlayerMovement>(scene).transform.position);
+        NavMeshPath path = new NavMeshPath();
+
+        // Marcas de objetos importantes (se dibujan encima del terreno).
+        Dictionary<(int, int), char> marks = new Dictionary<(int, int), char>();
+
+        void Mark(Vector3 p, char c) => marks[(Mathf.RoundToInt((p.x - min) / step), Mathf.RoundToInt((p.z - min) / step))] = c;
+
+        foreach (Chest chest in scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<Chest>(true))) Mark(chest.transform.position, 'C');
+        foreach (PotionPickup potion in scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<PotionPickup>(true))) Mark(potion.transform.position, 'o');
+        if (G.Find<Portal>(scene) is Portal portalMark) Mark(portalMark.transform.position, 'P');
+        Mark(origin, 'S');
+
+        System.Text.StringBuilder sb = new System.Text.StringBuilder();
+        sb.AppendLine("Mapa de caminos de TestMatias (norte arriba, cada caracter = 2 m)");
+        sb.AppendLine("Alcanzable por altura: b=playa  0=llanura  2  5  7=mesetas  T=cima | x=caminable pero NO alcanzable | ~=fondo del mar | (espacio)=sin piso");
+        sb.AppendLine("S=inicio C=cofre o=pocion P=portal");
+        sb.AppendLine();
+
+        int size = Mathf.RoundToInt((max - min) / step);
+
+        for (int zi = size; zi >= 0; zi--)
+        {
+            for (int xi = 0; xi <= size; xi++)
+            {
+                if (marks.TryGetValue((xi, zi), out char mark))
+                {
+                    sb.Append(mark);
+                    continue;
+                }
+
+                float x = min + xi * step, z = min + zi * step;
+                char cell = ' ';
+
+                foreach (float level in levels)
+                {
+                    if (!NavMesh.SamplePosition(new Vector3(x, level + 0.5f, z), out NavMeshHit hit, 1.2f, NavMesh.AllAreas))
+                        continue;
+
+                    if (hit.position.y < -4f)
+                    {
+                        cell = cell == ' ' ? '~' : cell;
+                        continue;
+                    }
+
+                    if (G.IsReachable(origin, hit.position, path))
+                    {
+                        float y = hit.position.y;
+                        cell = y < -1f ? 'b' : y < 1.5f ? '0' : y < 4f ? '2' : y < 6.5f ? '5' : y < 9f ? '7' : 'T';
+                    }
+                    else if (cell == ' ' || cell == '~')
+                    {
+                        cell = 'x';
+                    }
+                }
+
+                sb.Append(cell);
+            }
+
+            sb.AppendLine($"  z={min + zi * step}");
+        }
+
+        string file = System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath, "../Logs/TestMatias_MapaCaminos.txt"));
+        System.IO.File.WriteAllText(file, sb.ToString());
+        Debug.Log($"Mapa de caminos guardado en {file}");
+    }
+
     // ---------- Enemigos ----------
 
     private static GameObject EnsureTurtlePrefab(Scene scene)
@@ -195,7 +290,7 @@ public static class MatiasLevelContentBuilder
 
         foreach ((string groupName, Vector3 approx, EnemyKind[] enemies) in PathGroups)
         {
-            Vector3 center = G.SampleNavMesh(approx);
+            Vector3 center = G.SampleReachable(approx);
 
             for (int i = 0; i < enemies.Length; i++)
             {
@@ -209,12 +304,195 @@ public static class MatiasLevelContentBuilder
                 enemy.transform.SetParent(parent.transform, true);
 
                 float angle = i * Mathf.PI * 2f / enemies.Length;
-                enemy.transform.position = G.SampleNavMesh(center + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * 3f);
+                enemy.transform.position = G.SampleReachable(center + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * 3f);
 
                 SetLayerRecursive(enemy, enemyLayer);
                 G.GetOrAdd<EnemyHitFeedback>(enemy);
             }
         }
+    }
+
+    // ---------- Pociones y escudo ----------
+
+    private static void BuildPotionsAndBlock(Scene scene)
+    {
+        PotionData small = GetPotionData(SmallPotionPath, "Poción", 25f, new Color(1f, 0.15f, 0.2f));
+        PotionData big = GetPotionData(BigPotionPath, "Poción grande", 50f, new Color(0.6f, 0.2f, 1f));
+        PotionPickup prefab = BuildPotionPrefab(small);
+
+        // Pociones en el recorrido.
+        GameObject existing = G.FindByName(scene, "Potions");
+
+        if (existing != null)
+        {
+            Object.DestroyImmediate(existing);
+        }
+
+        GameObject parent = new GameObject("Potions");
+        SceneManager.MoveGameObjectToScene(parent, scene);
+
+        foreach ((Vector3 position, bool isBig) in PotionSpots)
+        {
+            GameObject potion = (GameObject)PrefabUtility.InstantiatePrefab(prefab.gameObject, scene);
+            potion.transform.SetParent(parent.transform, true);
+            potion.transform.position = G.SampleReachable(position);
+
+            if (isBig)
+            {
+                potion.name = "Potion_Big";
+                G.SetReference(potion.GetComponent<PotionPickup>(), "_data", big);
+            }
+        }
+
+        // Todos los enemigos pueden soltar una poción al morir.
+        foreach (EnemyTemplate enemy in scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<EnemyTemplate>(true)))
+        {
+            G.SetReference(G.GetOrAdd<EnemyDrop>(enemy.gameObject), "_dropPrefab", prefab);
+        }
+
+        // Jugador: bolsa de pociones + escudo (en el mismo objeto que Health).
+        GameObject player = G.Find<PlayerMovement>(scene).gameObject;
+        PotionBag bag = G.GetOrAdd<PotionBag>(player);
+        G.GetOrAdd<PlayerBlock>(player);
+        RemoveOldShieldVisual(player.transform);
+        AddDefendToPlayerController(player.GetComponent<Animator>());
+
+        // UI: contador de pociones y ayuda de controles.
+        LevelUI ui = G.Find<LevelUI>(scene);
+        Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+
+        Text potionsText = G.CreateText("PotionsText", ui.transform, font, new Vector2(1f, 1f), new Vector2(-40f, -100f), new Vector2(400f, 60f), 36, TextAnchor.UpperRight);
+        G.SetReference(ui, "_potionBag", bag);
+        G.SetReference(ui, "_potionsText", potionsText);
+
+        G.CreateText("ControlsHint", ui.transform, font, new Vector2(0f, 0f), new Vector2(40f, 40f), new Vector2(1200f, 40f), 24, TextAnchor.LowerLeft)
+            .text = "WASD mover · Clic izq atacar · Clic der escudo · E abrir · Q poción · M mapa";
+    }
+
+    private static PotionData GetPotionData(string path, string displayName, float heal, Color color)
+    {
+        PotionData data = AssetDatabase.LoadAssetAtPath<PotionData>(path);
+
+        if (data != null)
+            return data;
+
+        if (!AssetDatabase.IsValidFolder(DataFolder))
+        {
+            AssetDatabase.CreateFolder("Assets", "Data");
+        }
+
+        data = ScriptableObject.CreateInstance<PotionData>();
+        AssetDatabase.CreateAsset(data, path);
+
+        SerializedObject so = new SerializedObject(data);
+        so.FindProperty("_displayName").stringValue = displayName;
+        so.FindProperty("_healAmount").floatValue = heal;
+        so.FindProperty("_color").colorValue = color;
+        so.ApplyModifiedPropertiesWithoutUndo();
+
+        return data;
+    }
+
+    private static PotionPickup BuildPotionPrefab(PotionData defaultData)
+    {
+        GameObject existing = AssetDatabase.LoadAssetAtPath<GameObject>(PotionPrefabPath);
+
+        if (existing != null)
+            return existing.GetComponent<PotionPickup>();
+
+        GameObject root = new GameObject("Potion");
+
+        SphereCollider pickupZone = root.AddComponent<SphereCollider>();
+        pickupZone.isTrigger = true;
+        pickupZone.radius = 0.7f;
+        pickupZone.center = new Vector3(0f, 0.5f, 0f);
+
+        Transform visual = new GameObject("Visual").transform;
+        visual.SetParent(root.transform, false);
+        visual.localPosition = new Vector3(0f, 0.4f, 0f);
+
+        // El color del líquido lo pone PotionPickup según su PotionData.
+        Renderer liquid = CreatePrimitiveChild(PrimitiveType.Sphere, "Liquid", visual, Vector3.zero, Vector3.one * 0.4f, G.GetMaterial("PotionLiquid", Color.white));
+        CreatePrimitiveChild(PrimitiveType.Cylinder, "Neck", visual, new Vector3(0f, 0.25f, 0f), new Vector3(0.12f, 0.1f, 0.12f), G.GetMaterial("PotionGlass", new Color(0.85f, 0.95f, 1f)));
+        CreatePrimitiveChild(PrimitiveType.Cylinder, "Cork", visual, new Vector3(0f, 0.37f, 0f), new Vector3(0.14f, 0.04f, 0.14f), G.GetMaterial("ChestWood", new Color(0.45f, 0.27f, 0.12f)));
+
+        PotionPickup pickup = root.AddComponent<PotionPickup>();
+        G.SetReference(pickup, "_data", defaultData);
+        G.SetReference(pickup, "_visual", visual);
+        G.SetReference(pickup, "_liquidRenderer", liquid);
+
+        GameObject prefab = PrefabUtility.SaveAsPrefabAsset(root, PotionPrefabPath);
+        Object.DestroyImmediate(root);
+        return prefab.GetComponent<PotionPickup>();
+    }
+
+    // El escudo flotante de la versión anterior: ahora se usa la animación Defend.
+    private static void RemoveOldShieldVisual(Transform player)
+    {
+        Transform old = player.Find("ShieldVisual");
+
+        if (old != null)
+        {
+            Object.DestroyImmediate(old.gameObject);
+        }
+    }
+
+    /// <summary>
+    /// Agrega al Animator del jugador (Player.controller, de Marcos) el bool IsBlocking
+    /// y el estado Defend, con transiciones de ida y vuelta desde Locomotion.
+    /// Si ya existen, no hace nada.
+    /// </summary>
+    private static void AddDefendToPlayerController(Animator animator)
+    {
+        AnimatorController controller = animator != null ? animator.runtimeAnimatorController as AnimatorController : null;
+
+        if (controller == null)
+        {
+            Debug.LogWarning("El Player no tiene un Animator Controller editable: no se agregó la animación Defend.");
+            return;
+        }
+
+        if (controller.parameters.All(p => p.name != "IsBlocking"))
+        {
+            controller.AddParameter("IsBlocking", AnimatorControllerParameterType.Bool);
+        }
+
+        AnimatorStateMachine sm = controller.layers[0].stateMachine;
+
+        if (sm.states.Any(s => s.state.name == "Defend"))
+            return;
+
+        AnimatorState locomotion = sm.states.Select(s => s.state).FirstOrDefault(s => s.name == "Locomotion") ?? sm.defaultState;
+
+        AnimatorState defend = sm.AddState("Defend");
+        defend.motion = AssetDatabase.LoadAssetAtPath<AnimationClip>(DefendClipPath);
+
+        AnimatorStateTransition toDefend = locomotion.AddTransition(defend);
+        toDefend.AddCondition(AnimatorConditionMode.If, 0f, "IsBlocking");
+        toDefend.hasExitTime = false;
+        toDefend.duration = 0.1f;
+
+        AnimatorStateTransition toLocomotion = defend.AddTransition(locomotion);
+        toLocomotion.AddCondition(AnimatorConditionMode.IfNot, 0f, "IsBlocking");
+        toLocomotion.hasExitTime = false;
+        toLocomotion.duration = 0.15f;
+
+        EditorUtility.SetDirty(controller);
+        Debug.Log($"Estado Defend agregado a {AssetDatabase.GetAssetPath(controller)}.");
+    }
+
+    private static Renderer CreatePrimitiveChild(PrimitiveType type, string name, Transform parent, Vector3 position, Vector3 scale, Material material)
+    {
+        GameObject go = GameObject.CreatePrimitive(type);
+        go.name = name;
+        Object.DestroyImmediate(go.GetComponent<Collider>());
+        go.transform.SetParent(parent, false);
+        go.transform.localPosition = position;
+        go.transform.localScale = scale;
+
+        Renderer renderer = go.GetComponent<Renderer>();
+        renderer.sharedMaterial = material;
+        return renderer;
     }
 
     // ---------- Ave ----------

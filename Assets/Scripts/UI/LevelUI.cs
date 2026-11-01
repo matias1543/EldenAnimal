@@ -16,9 +16,11 @@ public class LevelUI : MonoBehaviour
     [SerializeField] private PlayerInteractor _interactor;
     [SerializeField] private Portal _portal;
     [SerializeField] private LevelFlow _levelFlow;
+    [SerializeField] private PotionBag _potionBag;
 
     [Header("Texts")]
     [SerializeField] private Text _gemsText;
+    [SerializeField] private Text _potionsText;
     [SerializeField] private Text _promptText;
     [SerializeField] private Text _messageText;
 
@@ -34,6 +36,9 @@ public class LevelUI : MonoBehaviour
     private Coroutine _messageRoutine;
     private WaitForSecondsRealtime _messageWait;
 
+    // Cantidad anterior, para distinguir si se juntó o se usó una poción.
+    private int _lastPotionCount;
+
     private void Awake()
     {
         _messageWait = new WaitForSecondsRealtime(_messageDuration);
@@ -44,6 +49,13 @@ public class LevelUI : MonoBehaviour
         if (_gemCollector != null) _gemCollector.OnGemsChanged += HandleGemsChanged;
         if (_interactor != null) _interactor.OnFocusChanged += HandleFocusChanged;
         if (_portal != null) _portal.OnActivated += HandlePortalActivated;
+
+        if (_potionBag != null)
+        {
+            _potionBag.OnPotionsChanged += HandlePotionsChanged;
+            _potionBag.OnPotionUsed += HandlePotionUsed;
+            _potionBag.OnHealthAlreadyFull += HandleHealthAlreadyFull;
+        }
 
         if (_levelFlow != null)
         {
@@ -62,6 +74,13 @@ public class LevelUI : MonoBehaviour
         if (_gemCollector != null) _gemCollector.OnGemsChanged -= HandleGemsChanged;
         if (_interactor != null) _interactor.OnFocusChanged -= HandleFocusChanged;
         if (_portal != null) _portal.OnActivated -= HandlePortalActivated;
+
+        if (_potionBag != null)
+        {
+            _potionBag.OnPotionsChanged -= HandlePotionsChanged;
+            _potionBag.OnPotionUsed -= HandlePotionUsed;
+            _potionBag.OnHealthAlreadyFull -= HandleHealthAlreadyFull;
+        }
 
         if (_levelFlow != null)
         {
@@ -82,7 +101,38 @@ public class LevelUI : MonoBehaviour
 
         int required = _gemCollector != null ? _gemCollector.RequiredGems : 0;
         UpdateGemsText(0, required);
+        UpdatePotionsText(_potionBag != null ? _potionBag.Count : 0);
         ShowMessage(_startMessage);
+    }
+
+    private void HandlePotionsChanged(int count)
+    {
+        if (count > _lastPotionCount)
+        {
+            ShowMessage("¡Poción obtenida! Tomala con Q");
+        }
+
+        UpdatePotionsText(count);
+    }
+
+    private void HandlePotionUsed(PotionData potion)
+    {
+        ShowMessage($"+{potion.HealAmount:0} de vida");
+    }
+
+    private void HandleHealthAlreadyFull()
+    {
+        ShowMessage("Tu vida ya está llena");
+    }
+
+    private void UpdatePotionsText(int count)
+    {
+        _lastPotionCount = count;
+
+        if (_potionsText != null)
+        {
+            _potionsText.text = $"Pociones: {count} (Q)";
+        }
     }
 
     private void HandleGemsChanged(int current, int required)
