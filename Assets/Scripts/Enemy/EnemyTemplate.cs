@@ -1,10 +1,7 @@
+
 using UnityEngine;
 using UnityEngine.AI;
 
-/// Idle: está quieto esperando detectar al jugador.
-/// Chase: persigue al jugador.
-/// Attack: ataca cuando el jugador está suficientemente cerca.
-/// Death: ejecuta la secuencia de muerte.
 public enum EnemyState
 {
     Idle,
@@ -13,102 +10,69 @@ public enum EnemyState
     Attack,
     Death
 }
-/// Clase base abstracta para los enemigos del juego.
 
-/// Contiene el comportamiento común:
-/// - Detección del jugador.
-/// - Persecución mediante NavMeshAgent.
-/// - Control de estados.
-/// - Control del tiempo entre ataques.
-/// - Reacción a la muerte.
-/// - Comunicación con el Animator.
-
-/// Los enemigos concretos deben heredar de esta clase
-/// e implementar su propio método Attack().
+/// <summary>
+/// Clase base para los enemigos de Elden Animal.
 ///
-/// La vida se administra mediante el componente Health.
+/// Controla:
+/// - Estados del enemigo.
+/// - Detección y persecución del jugador.
+/// - Rango y cooldown de ataque.
+/// - Reacción a la muerte.
+///
+/// Delega el patrullaje en EnemyPatrol
+/// y la administración de vida en Health.
 /// </summary>
-
-// Obliga a que el GameObject tenga estos componentes.
-// Unity los agrega automáticamente al incorporar este script
-// si todavía no existen.
 [RequireComponent(typeof(Health))]
 [RequireComponent(typeof(NavMeshAgent))]
 public abstract class EnemyTemplate : MonoBehaviour
 {
-    // Referencia al Transform del jugador.
-    // Se utiliza para conocer su posición.
     protected Transform _player;
     protected NavMeshAgent _agent;
     protected Animator _animator;
     protected Health _health;
 
+    // Componente que administra los recorridos.
+    private EnemyPatrol _patrol;
+
     [Header("Detection")]
-
-    // Velocidad de desplazamiento del enemigo.
     [SerializeField] private float _detectionRange = 10f;
-
-    // Distancia necesaria para comenzar a atacar.
     [SerializeField] private float _attackRange = 2f;
-
-    // Tiempo mínimo en segundos entre ataques consecutivos.
     [SerializeField] private float _attackCooldown = 1.2f;
 
-
     [Header("Movement")]
-
-    // Velocidad de desplazamiento del enemigo.
     [SerializeField] private float _moveSpeed = 3.5f;
 
-    [Header("Patrol")]
-
-    // Activa o desactiva el patrullaje.
-    [SerializeField] private bool _enablePatrol = true;
-
-    // Puntos que recorrerá el enemigo en orden.
-    [SerializeField] private Transform[] _patrolPoints;
-
-    // Tiempo que espera al llegar a cada punto.
-    [SerializeField] private float _waitTime = 2f;
-
-    // Distancia a la que consideramos que llegó al punto.
-    [SerializeField] private float _arrivalDistance = 0.5f;
-
-    // Índice del punto que debe visitar.
-    private int _currentPatrolIndex;
-
-    // Momento en el que termina la espera.
-    private float _waitUntil;
-
-    // Indica si está esperando en un punto.
-    private bool _waitingAtPoint;
-
-    // Momento en el que puede atacar nuevamente.
     private float _nextAttackTime;
-
-    // Evita ejecutar la secuencia de muerte más de una vez.
     private bool _deathSequenceStarted;
 
-    // Estado actual del enemigo.
-    // Solo puede modificarse desde esta clase mediante ChangeState().
-    // Las clases hijas pueden consultarlo.
-    protected EnemyState _currentState { get; private set; } = EnemyState.Idle;
+    protected EnemyState _currentState { get; private set; }
+        = EnemyState.Idle;
 
+    /// <summary>
+    /// Obtiene los componentes que necesita el enemigo.
+    /// </summary>
     protected virtual void Awake()
     {
         _agent = GetComponent<NavMeshAgent>();
         _animator = GetComponentInChildren<Animator>();
         _health = GetComponent<Health>();
 
+        // EnemyPatrol es opcional.
+        // Si no está, el enemigo permanece en Idle.
+        _patrol = GetComponent<EnemyPatrol>();
+
         _agent.speed = _moveSpeed;
         _agent.stoppingDistance = _attackRange;
     }
 
-    /// Busca al jugador mediante el tag "Player"
-    /// y almacena su Transform.
+    /// <summary>
+    /// Busca al jugador e inicializa el estado.
+    /// </summary>
     protected virtual void Start()
     {
-        GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
+        GameObject playerObject =
+            GameObject.FindGameObjectWithTag("Player");
 
         if (playerObject != null)
         {
@@ -118,26 +82,22 @@ public abstract class EnemyTemplate : MonoBehaviour
         {
             Debug.LogError("Player not found.");
         }
-        // Si tiene patrullaje configurado, empieza patrullando.
-        if (HasPatrolPoints())
+
+        // Si el enemigo tiene recorridos, comienza patrullando.
+        if (CanPatrol())
         {
             ChangeState(EnemyState.Patrol);
         }
     }
 
-    /// Se ejecuta cuando el componente se habilita.
-    /// Suscribe al enemigo al evento de muerte de Health.
-    /// De esta forma, Health puede notificar la muerte
-    /// sin conocer EnemyTemplate.
+    /// <summary>
+    /// Escucha la muerte notificada por Health.
+    /// </summary>
     protected virtual void OnEnable()
     {
         _health.OnDeath += HandleDeath;
     }
 
-    /// Se ejecuta cuando el componente se deshabilita
-    /// o cuando el GameObject es destruido.
-    /// Cancela la suscripción al evento para evitar
-    /// mantener referencias innecesarias.
     protected virtual void OnDisable()
     {
         if (_health != null)
@@ -146,9 +106,12 @@ public abstract class EnemyTemplate : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Ejecuta la máquina de estados.
+    /// </summary>
     protected virtual void Update()
     {
-        // La muerte debe procesarse incluso si no existe el jugador.
+        // La muerte se procesa aunque no exista el jugador.
         if (_currentState == EnemyState.Death)
         {
             UpdateDeathState();
@@ -175,102 +138,47 @@ public abstract class EnemyTemplate : MonoBehaviour
             case EnemyState.Attack:
                 UpdateAttackState();
                 break;
-
-            case EnemyState.Death:
-                UpdateDeathState();
-                break;
         }
     }
 
-    /// Cambia el estado actual del enemigo.
-    /// Recibe:
-    /// newState: nuevo estado al que queremos pasar.
-    /// Centralizar los cambios permite agregar posteriormente
-    /// acciones al entrar o salir de cada estado.
+    /// <summary>
+    /// Comprueba si tenemos un patrullaje disponible.
+    /// </summary>
+    private bool CanPatrol()
+    {
+        return _patrol != null &&
+               _patrol.isActiveAndEnabled &&
+               _patrol.HasPoints;
+    }
+
+    /// <summary>
+    /// Centraliza los cambios de estado.
+    /// </summary>
     protected void ChangeState(EnemyState newState)
     {
         if (_currentState == newState)
             return;
 
-        // Al salir de Patrol, cancelamos cualquier espera.
+        // Al abandonar Patrol, detenemos su movimiento.
         if (_currentState == EnemyState.Patrol)
         {
-            _waitingAtPoint = false;
+            _patrol?.StopPatrol();
         }
 
         _currentState = newState;
     }
-    /// <summary>
-    /// Comprueba si el patrullaje está activado
-    /// y existen puntos configurados.
-    /// </summary>
-    private bool HasPatrolPoints()
-    {
-        return _enablePatrol && _patrolPoints != null && _patrolPoints.Length > 0;
-    }
 
+    /// <summary>
+    /// En Idle espera hasta detectar al jugador
+    /// o hasta comenzar un recorrido.
+    /// </summary>
     private void UpdateIdleState()
     {
-        _agent.isStopped = true;
+        if (_agent.isOnNavMesh)
+            _agent.isStopped = true;
+
         SetMoving(false);
 
-        float distance = Vector3.Distance(transform.position, _player.position);
-
-        // La detección tiene prioridad sobre el patrullaje.
-        if (distance <= _detectionRange)
-        {
-            ChangeState(EnemyState.Chase);
-            return;
-        }
-
-        if (HasPatrolPoints())
-        {
-            ChangeState(EnemyState.Patrol);
-        }
-    }
-
-    protected virtual void UpdateChaseState()
-    {
-        float distance = Vector3.Distance(transform.position, _player.position);
-
-        if (distance > _detectionRange)
-        {
-            ChangeState(EnemyState.Idle);
-
-            _agent.isStopped = true;
-
-            SetMoving(false);
-
-            return;
-        }
-
-        if (distance <= _attackRange)
-        {
-            ChangeState(EnemyState.Attack);
-
-            _agent.isStopped = true;
-
-            SetMoving(false);
-
-            return;
-        }
-
-        _agent.isStopped = false;
-        _agent.SetDestination(_player.position);
-
-        SetMoving(true);
-    }
-
-    /// <summary>
-    /// Estado Patrol.
-    ///
-    /// Recorre los puntos configurados en orden.
-    /// Al llegar a cada uno, espera unos segundos.
-    /// Si detecta al jugador, interrumpe la patrulla.
-    /// </summary>
-    private void UpdatePatrolState()
-    {
-        // Comprobamos si el jugador está cerca.
         float distance = Vector3.Distance(
             transform.position,
             _player.position
@@ -282,88 +190,100 @@ public abstract class EnemyTemplate : MonoBehaviour
             return;
         }
 
-        // Si no hay puntos, volvemos a Idle.
-        if (!HasPatrolPoints())
+        if (CanPatrol())
+        {
+            ChangeState(EnemyState.Patrol);
+        }
+    }
+
+    /// <summary>
+    /// Comprueba la detección y delega el recorrido
+    /// al componente EnemyPatrol.
+    /// </summary>
+    private void UpdatePatrolState()
+    {
+        float distance = Vector3.Distance(
+            transform.position,
+            _player.position
+        );
+
+        // El jugador tiene prioridad sobre el recorrido.
+        if (distance <= _detectionRange)
+        {
+            ChangeState(EnemyState.Chase);
+            return;
+        }
+
+        if (!CanPatrol())
         {
             ChangeState(EnemyState.Idle);
             return;
         }
 
-        // Si estamos esperando, comprobamos el tiempo.
-        if (_waitingAtPoint)
+        // Delegamos el comportamiento a EnemyPatrol.
+        _patrol.UpdatePatrol();
+
+        // Sincronizamos la animación de movimiento.
+        SetMoving(_patrol.IsMoving);
+    }
+
+    /// <summary>
+    /// Persigue al jugador mientras esté dentro
+    /// de su rango de detección.
+    /// </summary>
+    protected virtual void UpdateChaseState()
+    {
+        float distance = Vector3.Distance(
+            transform.position,
+            _player.position
+        );
+
+        // Si pierde al jugador, vuelve a patrullar.
+        if (distance > _detectionRange)
         {
-            _agent.isStopped = true;
+            if (_agent.isOnNavMesh)
+                _agent.isStopped = true;
+
             SetMoving(false);
 
-            if (Time.time < _waitUntil)
-                return;
+            ChangeState(
+                CanPatrol()
+                    ? EnemyState.Patrol
+                    : EnemyState.Idle
+            );
 
-            // Terminó la espera: avanzamos al siguiente punto.
-            _waitingAtPoint = false;
-
-            _currentPatrolIndex = (_currentPatrolIndex + 1) % _patrolPoints.Length;
-        }
-
-        // Obtenemos el punto actual.
-        Transform point = _patrolPoints[_currentPatrolIndex];
-
-        if (point == null)
-        {
-            // Saltamos puntos que no estén asignados.
-            _currentPatrolIndex =
-                (_currentPatrolIndex + 1) % _patrolPoints.Length;
-
-            _agent.isStopped = true;
-            SetMoving(false);
             return;
         }
 
-        // En patrullaje queremos llegar hasta el punto.
-        _agent.stoppingDistance = 0f;
+        // Si alcanza el rango de ataque, deja de moverse.
+        if (distance <= _attackRange)
+        {
+            if (_agent.isOnNavMesh)
+                _agent.isStopped = true;
+
+            SetMoving(false);
+
+            ChangeState(EnemyState.Attack);
+            return;
+        }
+
+        if (!_agent.isOnNavMesh)
+            return;
+
+        // Restauramos la distancia de detención
+        // utilizada durante la persecución.
+        _agent.stoppingDistance = _attackRange;
+
         _agent.isStopped = false;
+        _agent.SetDestination(_player.position);
 
-        // Indicamos el destino al NavMeshAgent.
-        if (!_agent.SetDestination(point.position))
-        {
-            _agent.isStopped = true;
-            SetMoving(false);
-            return;
-        }
-
-        // Mientras se calcula la ruta, esperamos.
-        if (_agent.pathPending)
-        {
-            SetMoving(false);
-            return;
-        }
-
-        // Si el agente no tiene una ruta completa,
-        // evitamos tratarlo como una llegada válida.
-        if (_agent.pathStatus != NavMeshPathStatus.PathComplete)
-        {
-            _agent.isStopped = true;
-            SetMoving(false);
-            return;
-        }
-
-        // Comprobamos si llegó al destino.
-        if (_agent.remainingDistance <= _arrivalDistance)
-        {
-            // Detenemos al enemigo.
-            _agent.isStopped = true;
-            SetMoving(false);
-
-            // Comenzamos la espera.
-            _waitingAtPoint = true;
-            _waitUntil = Time.time + _waitTime;
-
-            return;
-        }
-
-        // Activamos la animación de caminar.
         SetMoving(true);
     }
 
+    /// <summary>
+    /// Controla el rango y cooldown del ataque.
+    /// Cada enemigo implementa su propio Attack().
+    /// </summary>
     protected virtual void UpdateAttackState()
     {
         float distance = Vector3.Distance(
@@ -381,41 +301,38 @@ public abstract class EnemyTemplate : MonoBehaviour
         {
             Attack();
 
-            _nextAttackTime = Time.time + _attackCooldown;
+            _nextAttackTime =
+                Time.time + _attackCooldown;
         }
     }
 
-    /// Método abstracto que deben implementar
-    /// obligatoriamente los enemigos concretos.
-    /// Por ejemplo:
-    /// - MeleeEnemy: ataque cuerpo a cuerpo.
-    /// - RangedEnemy: lanzamiento de proyectiles.
-    /// No contiene implementación porque cada tipo
-    /// de enemigo puede atacar de una manera diferente.
+    /// <summary>
+    /// Implementación específica del ataque.
+    /// </summary>
     protected abstract void Attack();
 
-    /// Se ejecuta cuando Health notifica que la vida
-    /// del enemigo llegó a cero.
-    /// Cambia el estado del enemigo a Death.
+    /// <summary>
+    /// Recibe el evento de muerte de Health.
+    /// </summary>
     private void HandleDeath()
     {
         ChangeState(EnemyState.Death);
+
+        // Ejecutamos la muerte inmediatamente.
+        UpdateDeathState();
     }
 
-    /// Ejecuta la secuencia de muerte del enemigo.
-    /// Detiene el movimiento, activa la animación de muerte
-    /// y destruye el GameObject después de dos segundos.
-    /// La secuencia solamente puede comenzar una vez.
+    /// <summary>
+    /// Detiene al enemigo y reproduce su muerte.
+    /// </summary>
     private void UpdateDeathState()
     {
-        // Evitamos repetir la secuencia cada frame.
         if (_deathSequenceStarted)
             return;
 
         _deathSequenceStarted = true;
 
-        // Detenemos el movimiento del enemigo.
-        if (_agent != null)
+        if (_agent != null && _agent.isOnNavMesh)
         {
             _agent.isStopped = true;
         }
@@ -427,17 +344,13 @@ public abstract class EnemyTemplate : MonoBehaviour
             _animator.SetTrigger("Death");
         }
 
-        // Destruimos el enemigo después de dos segundos.
-        // Esto permite reproducir la animación de muerte.
         Destroy(gameObject, 2f);
     }
 
-    /// Método auxiliar para controlar la animación
-    /// de movimiento del enemigo.
-    /// Recibe:
-    /// value: true si se está moviendo, false si está quieto.
-    /// Centraliza el acceso al Animator para evitar
-    /// repetir código en los diferentes estados.
+    /// <summary>
+    /// Centraliza el control de las animaciones
+    /// de movimiento.
+    /// </summary>
     private void SetMoving(bool value)
     {
         if (_animator != null)

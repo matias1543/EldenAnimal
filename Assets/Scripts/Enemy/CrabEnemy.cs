@@ -42,8 +42,7 @@ public class CrabEnemy : EnemyTemplate
 
         // Buscamos un componente que implemente IDamageable.
         // Puede encontrarse en el jugador o en sus padres.
-        IDamageable damageable =
-            _player.GetComponentInParent<IDamageable>();
+        IDamageable damageable = _player.GetComponentInParent<IDamageable>();
 
         // Si el jugador puede recibir daño, lo aplicamos.
         if (damageable != null)
