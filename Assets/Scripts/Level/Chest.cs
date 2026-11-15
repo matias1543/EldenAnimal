@@ -23,9 +23,14 @@ public class Chest : MonoBehaviour, IInteractable
     [SerializeField] private float _gemRiseHeight = 1.2f;
     [SerializeField] private float _gemShowDuration = 1.2f;
 
+    // Misión que tiene que estar activa para poder abrir el cofre (opcional).
+    [SerializeField] private Quest _requiredQuest;
+
     private bool _isOpen;
 
-    public string Prompt => "E: Abrir cofre";
+    private bool IsLocked => _requiredQuest != null && _requiredQuest.State != QuestState.Active;
+
+    public string Prompt => IsLocked ? "Cerrado: primero hablá con el guardián" : "E: Abrir cofre";
     public bool CanInteract => !_isOpen;
 
     private void Awake()
@@ -38,7 +43,7 @@ public class Chest : MonoBehaviour, IInteractable
 
     public void Interact(GameObject interactor)
     {
-        if (_isOpen)
+        if (_isOpen || IsLocked)
             return;
 
         _isOpen = true;

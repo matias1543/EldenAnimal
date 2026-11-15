@@ -79,14 +79,29 @@ public static class MatiasLevelContentBuilder
             return;
 
         Scene scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+
+        if (BuildAll(scene))
+        {
+            EditorSceneManager.MarkSceneDirty(scene);
+            EditorSceneManager.SaveScene(scene);
+            AssetDatabase.SaveAssets();
+        }
+    }
+
+    /// <summary>
+    /// Arma todo el contenido del nivel en la escena abierta.
+    /// La usa también MatiasLevelSetup al actualizar el Player de Marcos.
+    /// </summary>
+    internal static bool BuildAll(Scene scene)
+    {
         int minimapLayer = EnsureLayer(MinimapLayerName);
 
         if (!BakeNavMesh(scene, minimapLayer))
-            return;
+            return false;
 
         // Cofres, enemigos de cada cofre, portal y UI sobre el NavMesh nuevo.
         if (!G.Build(scene))
-            return;
+            return false;
 
         Dictionary<EnemyKind, GameObject> prefabs = new Dictionary<EnemyKind, GameObject>
         {
@@ -98,15 +113,16 @@ public static class MatiasLevelContentBuilder
 
         SpawnPathEnemies(scene, prefabs);
         BuildPotionsAndBlock(scene);
+
+        // La UI del nivel se reconstruye arriba: volvemos a conectar NPC y misión.
+        MatiasNpcBuilder.Build(scene);
+
         BuildMinimap(scene, minimapLayer);
         ValidatePaths(scene);
         WriteReachabilityMap(scene);
 
-        EditorSceneManager.MarkSceneDirty(scene);
-        EditorSceneManager.SaveScene(scene);
-        AssetDatabase.SaveAssets();
-
         Debug.Log("Nivel completo: NavMesh propio, enemigos en el recorrido, aves y minimapa.");
+        return true;
     }
 
     // ---------- NavMesh ----------
@@ -366,7 +382,7 @@ public static class MatiasLevelContentBuilder
         G.SetReference(ui, "_potionsText", potionsText);
 
         G.CreateText("ControlsHint", ui.transform, font, new Vector2(0f, 0f), new Vector2(40f, 40f), new Vector2(1200f, 40f), 24, TextAnchor.LowerLeft)
-            .text = "WASD mover · Clic izq atacar · Clic der escudo · E abrir · Q poción · M mapa";
+            .text = "WASD mover · Clic izq atacar · 1/2 espada/lanza · Clic der escudo · E interactuar · Q poción · M mapa";
     }
 
     private static PotionData GetPotionData(string path, string displayName, float heal, Color color)

@@ -17,6 +17,8 @@ public class LevelUI : MonoBehaviour
     [SerializeField] private Portal _portal;
     [SerializeField] private LevelFlow _levelFlow;
     [SerializeField] private PotionBag _potionBag;
+    [SerializeField] private Quest _quest;
+    [SerializeField] private DialogueUI _dialogueUI;
 
     [Header("Texts")]
     [SerializeField] private Text _gemsText;
@@ -39,6 +41,9 @@ public class LevelUI : MonoBehaviour
     // Cantidad anterior, para distinguir si se juntó o se usó una poción.
     private int _lastPotionCount;
 
+    // Elemento al alcance del jugador, para volver a mostrar su texto al cerrar un diálogo.
+    private IInteractable _focused;
+
     private void Awake()
     {
         _messageWait = new WaitForSecondsRealtime(_messageDuration);
@@ -55,6 +60,14 @@ public class LevelUI : MonoBehaviour
             _potionBag.OnPotionsChanged += HandlePotionsChanged;
             _potionBag.OnPotionUsed += HandlePotionUsed;
             _potionBag.OnHealthAlreadyFull += HandleHealthAlreadyFull;
+        }
+
+        if (_quest != null) _quest.OnStateChanged += HandleQuestChanged;
+
+        if (_dialogueUI != null)
+        {
+            _dialogueUI.OnOpened += HandleDialogueOpened;
+            _dialogueUI.OnClosed += HandleDialogueClosed;
         }
 
         if (_levelFlow != null)
@@ -80,6 +93,14 @@ public class LevelUI : MonoBehaviour
             _potionBag.OnPotionsChanged -= HandlePotionsChanged;
             _potionBag.OnPotionUsed -= HandlePotionUsed;
             _potionBag.OnHealthAlreadyFull -= HandleHealthAlreadyFull;
+        }
+
+        if (_quest != null) _quest.OnStateChanged -= HandleQuestChanged;
+
+        if (_dialogueUI != null)
+        {
+            _dialogueUI.OnOpened -= HandleDialogueOpened;
+            _dialogueUI.OnClosed -= HandleDialogueClosed;
         }
 
         if (_levelFlow != null)
@@ -147,7 +168,28 @@ public class LevelUI : MonoBehaviour
 
     private void HandleFocusChanged(IInteractable interactable)
     {
+        _focused = interactable;
         _promptText.text = interactable != null ? interactable.Prompt : string.Empty;
+    }
+
+    private void HandleQuestChanged(Quest quest)
+    {
+        if (quest.State == QuestState.Active)
+        {
+            ShowMessage($"Nueva misión: {quest.Title}");
+        }
+
+        UpdateGemsText(_gemCollector != null ? _gemCollector.Gems : 0, _gemCollector != null ? _gemCollector.RequiredGems : 0);
+    }
+
+    private void HandleDialogueOpened()
+    {
+        _promptText.text = string.Empty;
+    }
+
+    private void HandleDialogueClosed()
+    {
+        _promptText.text = _focused != null ? _focused.Prompt : string.Empty;
     }
 
     private void HandlePortalActivated()
@@ -168,6 +210,13 @@ public class LevelUI : MonoBehaviour
 
     private void UpdateGemsText(int current, int required)
     {
+        // Antes de aceptar la misión, el objetivo es ir a hablar con el NPC.
+        if (_quest != null && _quest.State == QuestState.NotStarted)
+        {
+            _gemsText.text = "Misión: hablá con el guardián";
+            return;
+        }
+
         _gemsText.text = $"Gemas: {current}/{required}";
     }
 

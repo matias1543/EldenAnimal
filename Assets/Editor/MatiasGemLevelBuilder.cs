@@ -32,7 +32,8 @@ public static class MatiasGemLevelBuilder
     {
         ("Chest_Playa",  new Vector3(34f, -2.5f, -56f), new[] { "CRAB (4)", "CRAB (5)", "CRAB (6)", "Slime" }),
         ("Chest_Camino", new Vector3(37f,  0f,   -2f),  new[] { "CRAB", "CRAB (1)", "TurtleShellPolyart" }),
-        ("Chest_Puente", new Vector3(25f,  0f,   31f),  new[] { "CRAB (2)", "CRAB (3)", "Octopus" }),
+        // La zona del puente (25, 0, 31) quedó aislada por el río: el cofre va en la meseta norte.
+        ("Chest_Puente", new Vector3(12f,  5f,   34f),  new[] { "CRAB (2)", "CRAB (3)", "Octopus" }),
     };
 
     [MenuItem("Tools/Elden Animal/Armar nivel de gemas")]
@@ -403,7 +404,7 @@ public static class MatiasGemLevelBuilder
     // Punto de inicio del jugador sobre el NavMesh (lo fija Build).
     internal static Vector3? ReachableOrigin;
 
-    private static readonly float[] HeightProbes = { 0f, -2.5f, 2.5f, -5f };
+    private static readonly float[] HeightProbes = { 0f, -2.5f, 2.5f, -5f, 5f };
 
     /// <summary>
     /// Como SampleNavMesh, pero solo acepta puntos a los que se llega caminando
