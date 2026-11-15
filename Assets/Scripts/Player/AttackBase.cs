@@ -23,6 +23,9 @@ public abstract class AttackBase : MonoBehaviour
         _stamina = GetComponent<Stamina>();
     }
 
+    // No hay OnDisable con Disable(): la acción es compartida en todo el proyecto, y deshabilitarla
+    // al apagar un ataque (por ejemplo, al cambiar de arma) también le saca el click al otro.
+    // Un ataque apagado igual deja de atacar, porque Unity no ejecuta su Update.
     private void OnEnable()
     {
         if (_attackAction == null)
@@ -31,12 +34,6 @@ public abstract class AttackBase : MonoBehaviour
             return;
         }
         _attackAction.action.Enable();
-    }
-
-    private void OnDisable()
-    {
-        if (_attackAction == null) return;
-        _attackAction.action.Disable();
     }
 
     private void Update()
