@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 70006fab0192ccf489d8628af5ce0cc8, type: 3}
+  m_Name: Reward_Tito_Potions
+  m_EditorClassIdentifier: Assembly-CSharp::PotionReward
+  _description: Recibiste 2 pociones grandes y te curaste por completo
+  _potion: {fileID: 11400000, guid: 083b97de21e36394d94b9b64578c9d3d, type: 2}
+  _amount: 2
+  _healFully: 1

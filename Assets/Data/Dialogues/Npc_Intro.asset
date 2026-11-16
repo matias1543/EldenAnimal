@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f3c29cab06e61fa4b91c62310c2ecedf, type: 3}
+  m_Name: Npc_Intro
+  m_EditorClassIdentifier: Assembly-CSharp::DialogueData
+  _speakerName: Pipo
+  _lines:
+  - "\xA1Hola, viajero! Soy Pipo, el guardi\xE1n de esta isla."
+  - "El Rey Slime rob\xF3 las 3 gemas sagradas y las escondi\xF3 en cofres por toda
+    la isla."
+  - "Sin las gemas no se abre la Puerta de la Cima, y all\xE1 arriba est\xE1 el \xFAnico
+    portal para salir de ac\xE1."
+  - "Empez\xE1 por la playa. Con tu primera gema se abre la cueva del oeste, y con
+    2 Brutus te deja cruzar el puente del norte."
+  - "Si quer\xE9s hacerte m\xE1s fuerte antes de enfrentar al Rey Slime, busc\xE1
+    a Lila, a Tito y a Roco: tienen trabajos para vos."
+  - "Apret\xE1 M para ver el mapa: los cofres est\xE1n en amarillo. Clic izquierdo
+    ataca, 1/2 cambia de arma, clic derecho te defiende y Q toma pociones. \xA1Suerte!"
