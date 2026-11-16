@@ -14,6 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DialogueData
   _speakerName: Pipo
   _lines:
-  - "\xA1Lo lograste! Las tres gemas brillan otra vez."
-  - "El portal de la cima ya est\xE1 abierto. Segu\xED la luz celeste y volv\xE9
-    a casa. \xA1Gracias, h\xE9roe!"
+  - "\xA1Ten\xE9s las 3 gemas! La Puerta de la Cima ya se abri\xF3."
+  - "Sub\xED y derrot\xE1 al Rey Slime: cuando caiga, el portal se va a encender.
+    \xA1Vos pod\xE9s!"

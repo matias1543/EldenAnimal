@@ -122,7 +122,7 @@ public static class MatiasLevelSetup
     /// TestMarcos no se guarda: su archivo queda intacto.
     /// </summary>
     [MenuItem("Tools/Elden Animal/Actualizar Player de Marcos")]
-    private static void UpdatePlayerFromMarcos()
+    internal static void UpdatePlayerFromMarcos()
     {
         if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
             return;
@@ -157,14 +157,22 @@ public static class MatiasLevelSetup
         SceneManager.MoveGameObjectToScene(newHud, matiasScene);
         newPlayer.transform.SetPositionAndRotation(spawnPosition, spawnRotation);
 
-        EditorSceneManager.CloseScene(marcosScene, true);
+        // Misma cámara que Marcos (ángulo, giro, distancia), apuntando a nuestro Player.
+        IsometricCamera marcosCamera = FindInScene<IsometricCamera>(marcosScene).FirstOrDefault();
 
         foreach (IsometricCamera cam in FindInScene<IsometricCamera>(matiasScene))
         {
+            if (marcosCamera != null)
+            {
+                EditorUtility.CopySerialized(marcosCamera, cam);
+            }
+
             SerializedObject so = new SerializedObject(cam);
             so.FindProperty("_target").objectReferenceValue = newPlayer.transform;
             so.ApplyModifiedPropertiesWithoutUndo();
         }
+
+        EditorSceneManager.CloseScene(marcosScene, true);
 
         // Gemas, interacción, pociones, escudo, NPC y minimapa sobre el Player nuevo.
         if (!MatiasLevelContentBuilder.BuildAll(matiasScene))

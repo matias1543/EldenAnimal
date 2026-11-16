@@ -15,4 +15,5 @@ MonoBehaviour:
   _speakerName: Pipo
   _lines:
   - "\xA1Todav\xEDa te faltan gemas! Busc\xE1 los cofres amarillos en el mapa (M)."
-  - "Si te lastiman, tom\xE1 una poci\xF3n con Q."
+  - 'Acordate: la cueva del oeste se abre con 1 gema y Brutus, el del puente del
+    norte, pide 2.'

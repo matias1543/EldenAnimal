@@ -61,6 +61,15 @@ public class PlayerBlock : MonoBehaviour, IDamageModifier
         }
     }
 
+    /// <summary>
+    /// Mejora el escudo (por ejemplo, como recompensa de una misión).
+    /// </summary>
+    public void Upgrade(float damageReduction, float staminaPerBlock)
+    {
+        _damageReduction = Mathf.Clamp01(damageReduction);
+        _staminaPerBlock = Mathf.Max(0f, staminaPerBlock);
+    }
+
     public float ModifyDamage(float damage)
     {
         if (!IsBlocking)

@@ -1,0 +1,17 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 96f8a8b14a7c2b247a1460595655e2bf, type: 3}
+  m_Name: Reward_Lila_Damage
+  m_EditorClassIdentifier: Assembly-CSharp::DamageUpgradeReward
+  _description: "Tu arma est\xE1 afilada: +50% de da\xF1o"
+  _playerPower: {fileID: 11400000, guid: 07bdbfc60feef994480d93febe1fd049, type: 2}
+  _damageBonus: 0.5

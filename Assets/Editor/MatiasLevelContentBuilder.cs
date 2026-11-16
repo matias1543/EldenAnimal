@@ -48,28 +48,23 @@ public static class MatiasLevelContentBuilder
     private const string PotionPrefabPath = "Assets/Prefabs/Potion.prefab";
     private const string DefendClipPath = "Assets/Assets importados/DogKnight/Animations/Defend.anim";
 
-    // Pociones sueltas a lo largo del recorrido (true = poción grande).
-    private static readonly (Vector3 position, bool big)[] PotionSpots =
-    {
-        (new Vector3(55f,  -2.5f, -36f), false),
-        (new Vector3(40f,  -2.5f, -52f), false),
-        (new Vector3(35f,   0f,   -12f), false),
-        (new Vector3(37f,   0f,    22f), true),
-        (new Vector3(4f,    5f,    23f), false),
-        (new Vector3(-12f,  7.5f,  24f), true),
-    };
+    // Pociones que sueltan los enemigos: chance de soltar y peso de cada tipo (más peso = más común).
+    private const float PotionDropChance = 0.4f;
+    private const float SmallPotionWeight = 4f;
+    private const float BigPotionWeight = 1f;
 
     private enum EnemyKind { Slime, Crab, Turtle, Bird }
 
-    // Grupos de enemigos a lo largo del recorrido: Playa -> Camino del Este -> Puente -> Mesetas -> Cima.
+    // Grupos de enemigos a lo largo del recorrido:
+    // Playa -> Camino del Este -> Puente (Brutus) -> Orilla Norte -> La Subida -> Cima (Rey Slime).
     private static readonly (string name, Vector3 position, EnemyKind[] enemies)[] PathGroups =
     {
         ("Playa_Escalera", new Vector3(52f, -2.5f, -44f), new[] { EnemyKind.Crab, EnemyKind.Slime }),
         ("Camino_Sur",     new Vector3(36f,  0f,   -22f), new[] { EnemyKind.Slime, EnemyKind.Slime, EnemyKind.Bird }),
-        ("Camino_Norte",   new Vector3(38f,  0f,    14f), new[] { EnemyKind.Turtle, EnemyKind.Crab, EnemyKind.Bird }),
+        ("Camino_Norte",   new Vector3(38f,  0f,    14f), new[] { EnemyKind.Turtle, EnemyKind.Crab }),
+        ("Orilla_Norte",   new Vector3(36f,  0f,    32f), new[] { EnemyKind.Bird, EnemyKind.Bird, EnemyKind.Crab }),
         ("Meseta",         new Vector3(8f,   5f,    20f), new[] { EnemyKind.Slime, EnemyKind.Slime, EnemyKind.Bird }),
         ("Meseta_Alta",    new Vector3(-15f, 7.5f,  28f), new[] { EnemyKind.Turtle, EnemyKind.Slime, EnemyKind.Bird }),
-        ("Cima",           new Vector3(-30f, 10f,   30f), new[] { EnemyKind.Bird, EnemyKind.Bird, EnemyKind.Turtle }),
     };
 
     [MenuItem("Tools/Elden Animal/Completar nivel (NavMesh, enemigos, aves, minimapa)")]
@@ -99,6 +94,12 @@ public static class MatiasLevelContentBuilder
         if (!BakeNavMesh(scene, minimapLayer))
             return false;
 
+        // El puente norte no conecta en el NavMesh: lo unimos antes de ubicar cosas del otro lado.
+        MatiasLevelDesignBuilder.BuildBridgeLink(scene);
+
+        // Lo mismo con la zona oeste, a través de la cueva del suroeste.
+        MatiasSideQuestBuilder.BuildWestGate(scene);
+
         // Cofres, enemigos de cada cofre, portal y UI sobre el NavMesh nuevo.
         if (!G.Build(scene))
             return false;
@@ -112,10 +113,20 @@ public static class MatiasLevelContentBuilder
         };
 
         SpawnPathEnemies(scene, prefabs);
+
+        // Zonas opcionales (antes vacías) con enemigos nuevos.
+        MatiasSideQuestBuilder.SpawnSideEnemies(scene);
+
         BuildPotionsAndBlock(scene);
 
         // La UI del nivel se reconstruye arriba: volvemos a conectar NPC y misión.
         MatiasNpcBuilder.Build(scene);
+
+        // Brutus en el puente, Puerta de la Cima y Rey Slime.
+        MatiasLevelDesignBuilder.BuildLocksAndBoss(scene);
+
+        // Lila y Tito con sus misiones, y el poder del jugador en todos los enemigos.
+        MatiasSideQuestBuilder.BuildSideQuests(scene);
 
         BuildMinimap(scene, minimapLayer);
         ValidatePaths(scene);
@@ -139,6 +150,18 @@ public static class MatiasLevelContentBuilder
 
         // Los íconos del minimapa no deben generar piso caminable.
         surface.layerMask &= ~(1 << minimapLayer);
+
+        // Las barreras de corridas anteriores taparían la rampa y el puente en el NavMesh nuevo.
+        // Se borran acá y se vuelven a crear después (MatiasLevelDesignBuilder).
+        foreach (string blocker in new[] { "SummitDoor", "BridgeBlocker", "BridgeWalkway", "BridgeLink", "CaveDoor", "SouthBridgeBlocker", "SouthBridgeLock", "WestGateLink", "WestGateWalkway" })
+        {
+            GameObject found = G.FindByName(scene, blocker);
+
+            if (found != null)
+            {
+                Object.DestroyImmediate(found);
+            }
+        }
 
         try
         {
@@ -204,6 +227,9 @@ public static class MatiasLevelContentBuilder
 
         void Mark(Vector3 p, char c) => marks[(Mathf.RoundToInt((p.x - min) / step), Mathf.RoundToInt((p.z - min) / step))] = c;
 
+        foreach (EnemyTemplate enemy in scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<EnemyTemplate>(true))) Mark(enemy.transform.position, enemy is BossSlime ? 'B' : 'e');
+        foreach (NpcDialogue npc in scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<NpcDialogue>(true))) Mark(npc.transform.position, 'N');
+        foreach (GemGatekeeper gate in scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<GemGatekeeper>(true))) Mark(gate.transform.position, 'N');
         foreach (Chest chest in scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<Chest>(true))) Mark(chest.transform.position, 'C');
         foreach (PotionPickup potion in scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<PotionPickup>(true))) Mark(potion.transform.position, 'o');
         if (G.Find<Portal>(scene) is Portal portalMark) Mark(portalMark.transform.position, 'P');
@@ -212,7 +238,7 @@ public static class MatiasLevelContentBuilder
         System.Text.StringBuilder sb = new System.Text.StringBuilder();
         sb.AppendLine("Mapa de caminos de TestMatias (norte arriba, cada caracter = 2 m)");
         sb.AppendLine("Alcanzable por altura: b=playa  0=llanura  2  5  7=mesetas  T=cima | x=caminable pero NO alcanzable | ~=fondo del mar | (espacio)=sin piso");
-        sb.AppendLine("S=inicio C=cofre o=pocion P=portal");
+        sb.AppendLine("S=inicio C=cofre o=pocion P=portal e=enemigo B=jefe N=NPC");
         sb.AppendLine();
 
         int size = Mathf.RoundToInt((max - min) / step);
@@ -336,34 +362,18 @@ public static class MatiasLevelContentBuilder
         PotionData big = GetPotionData(BigPotionPath, "Poción grande", 50f, new Color(0.6f, 0.2f, 1f));
         PotionPickup prefab = BuildPotionPrefab(small);
 
-        // Pociones en el recorrido.
-        GameObject existing = G.FindByName(scene, "Potions");
+        // Las pociones ya no están fijas en el mapa: solo las sueltan los enemigos.
+        GameObject oldPotions = G.FindByName(scene, "Potions");
 
-        if (existing != null)
+        if (oldPotions != null)
         {
-            Object.DestroyImmediate(existing);
+            Object.DestroyImmediate(oldPotions);
         }
 
-        GameObject parent = new GameObject("Potions");
-        SceneManager.MoveGameObjectToScene(parent, scene);
-
-        foreach ((Vector3 position, bool isBig) in PotionSpots)
-        {
-            GameObject potion = (GameObject)PrefabUtility.InstantiatePrefab(prefab.gameObject, scene);
-            potion.transform.SetParent(parent.transform, true);
-            potion.transform.position = G.SampleReachable(position);
-
-            if (isBig)
-            {
-                potion.name = "Potion_Big";
-                G.SetReference(potion.GetComponent<PotionPickup>(), "_data", big);
-            }
-        }
-
-        // Todos los enemigos pueden soltar una poción al morir.
+        // Todos los enemigos pueden soltar una poción al azar al morir.
         foreach (EnemyTemplate enemy in scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<EnemyTemplate>(true)))
         {
-            G.SetReference(G.GetOrAdd<EnemyDrop>(enemy.gameObject), "_dropPrefab", prefab);
+            ConfigureDrop(G.GetOrAdd<EnemyDrop>(enemy.gameObject), prefab, small, big);
         }
 
         // Jugador: bolsa de pociones + escudo (en el mismo objeto que Health).
@@ -383,6 +393,23 @@ public static class MatiasLevelContentBuilder
 
         G.CreateText("ControlsHint", ui.transform, font, new Vector2(0f, 0f), new Vector2(40f, 40f), new Vector2(1200f, 40f), 24, TextAnchor.LowerLeft)
             .text = "WASD mover · Clic izq atacar · 1/2 espada/lanza · Clic der escudo · E interactuar · Q poción · M mapa";
+    }
+
+    private static void ConfigureDrop(EnemyDrop drop, PotionPickup prefab, PotionData small, PotionData big)
+    {
+        SerializedObject so = new SerializedObject(drop);
+        so.FindProperty("_dropPrefab").objectReferenceValue = prefab;
+        so.FindProperty("_dropChance").floatValue = PotionDropChance;
+
+        SerializedProperty drops = so.FindProperty("_possibleDrops");
+        drops.arraySize = 2;
+
+        drops.GetArrayElementAtIndex(0).FindPropertyRelative("Potion").objectReferenceValue = small;
+        drops.GetArrayElementAtIndex(0).FindPropertyRelative("Weight").floatValue = SmallPotionWeight;
+        drops.GetArrayElementAtIndex(1).FindPropertyRelative("Potion").objectReferenceValue = big;
+        drops.GetArrayElementAtIndex(1).FindPropertyRelative("Weight").floatValue = BigPotionWeight;
+
+        so.ApplyModifiedPropertiesWithoutUndo();
     }
 
     private static PotionData GetPotionData(string path, string displayName, float heal, Color color)
@@ -775,7 +802,7 @@ public static class MatiasLevelContentBuilder
     }
 
     // Cuadrado plano mirando hacia arriba, por encima del objeto: solo lo ve la cámara del minimapa.
-    private static GameObject AddMarker(Transform parent, Material material, float size, int layer)
+    internal static GameObject AddMarker(Transform parent, Material material, float size, int layer)
     {
         Transform old = parent.Find("MinimapMarker");
 

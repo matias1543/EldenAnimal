@@ -19,6 +19,10 @@ public class LevelUI : MonoBehaviour
     [SerializeField] private PotionBag _potionBag;
     [SerializeField] private Quest _quest;
     [SerializeField] private DialogueUI _dialogueUI;
+    [SerializeField] private PathLock[] _pathLocks = new PathLock[0];
+    [SerializeField] private BossSlime _boss;
+    [SerializeField] private Quest[] _sideQuests = new Quest[0];
+    [SerializeField] private Text _sideQuestsText;
 
     [Header("Texts")]
     [SerializeField] private Text _gemsText;
@@ -70,6 +74,20 @@ public class LevelUI : MonoBehaviour
             _dialogueUI.OnClosed += HandleDialogueClosed;
         }
 
+        foreach (PathLock pathLock in _pathLocks)
+        {
+            if (pathLock != null) pathLock.OnOpened += HandleLockOpened;
+        }
+
+        if (_boss != null) _boss.OnEnraged += HandleBossEnraged;
+
+        foreach (Quest sideQuest in _sideQuests)
+        {
+            if (sideQuest == null) continue;
+            sideQuest.OnStateChanged += HandleSideQuestStateChanged;
+            sideQuest.OnProgressChanged += HandleSideQuestProgress;
+        }
+
         if (_levelFlow != null)
         {
             _levelFlow.OnVictory += HandleVictory;
@@ -101,6 +119,20 @@ public class LevelUI : MonoBehaviour
         {
             _dialogueUI.OnOpened -= HandleDialogueOpened;
             _dialogueUI.OnClosed -= HandleDialogueClosed;
+        }
+
+        foreach (PathLock pathLock in _pathLocks)
+        {
+            if (pathLock != null) pathLock.OnOpened -= HandleLockOpened;
+        }
+
+        if (_boss != null) _boss.OnEnraged -= HandleBossEnraged;
+
+        foreach (Quest sideQuest in _sideQuests)
+        {
+            if (sideQuest == null) continue;
+            sideQuest.OnStateChanged -= HandleSideQuestStateChanged;
+            sideQuest.OnProgressChanged -= HandleSideQuestProgress;
         }
 
         if (_levelFlow != null)
@@ -194,7 +226,61 @@ public class LevelUI : MonoBehaviour
 
     private void HandlePortalActivated()
     {
-        ShowMessage("¡Tenés todas las gemas! El portal de la cima se abrió: seguí la luz");
+        ShowMessage("¡El portal de la cima se abrió! Seguí la luz");
+    }
+
+    private void HandleLockOpened(PathLock pathLock)
+    {
+        ShowMessage(pathLock.OpenedMessage);
+    }
+
+    private void HandleBossEnraged()
+    {
+        ShowMessage($"¡El {_boss.BossName} se enfureció y llamó refuerzos!");
+    }
+
+    private void HandleSideQuestStateChanged(Quest quest)
+    {
+        if (quest.State == QuestState.Active)
+        {
+            ShowMessage($"Nueva misión: {quest.Title}");
+        }
+        else if (quest.State == QuestState.Completed)
+        {
+            string reward = quest.Reward != null ? quest.Reward.Description : string.Empty;
+            ShowMessage($"¡Misión cumplida! {reward}");
+        }
+
+        RefreshSideQuestsText();
+    }
+
+    private void HandleSideQuestProgress(Quest quest)
+    {
+        if (quest.State == QuestState.Active)
+        {
+            ShowMessage($"{quest.Title}: {quest.ProgressText}");
+        }
+
+        RefreshSideQuestsText();
+    }
+
+    // Lista de misiones secundarias en curso, debajo de las pociones.
+    private void RefreshSideQuestsText()
+    {
+        if (_sideQuestsText == null)
+            return;
+
+        System.Text.StringBuilder builder = new System.Text.StringBuilder();
+
+        foreach (Quest quest in _sideQuests)
+        {
+            if (quest != null && quest.State == QuestState.Active)
+            {
+                builder.Append("• ").Append(quest.Title).Append(' ').AppendLine(quest.ProgressText);
+            }
+        }
+
+        _sideQuestsText.text = builder.ToString();
     }
 
     private void HandleVictory() => ShowEndScreen("¡VICTORIA!");

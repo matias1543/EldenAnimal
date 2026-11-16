@@ -19,12 +19,23 @@ public class LevelFlow : MonoBehaviour
     // Tiempo antes de pausar el juego, para que se vea la muerte o la entrada al portal.
     [SerializeField] private float _endDelay = 1f;
 
+    // Mejoras del jugador ganadas en misiones: se reinician al empezar el nivel.
+    [SerializeField] private PlayerPowerData _playerPower;
+
     private bool _finished;
 
     public bool IsFinished => _finished;
 
     public event Action OnVictory;
     public event Action OnDefeat;
+
+    private void Awake()
+    {
+        if (_playerPower != null)
+        {
+            _playerPower.ResetRuntime();
+        }
+    }
 
     private void OnEnable()
     {

@@ -10,36 +10,30 @@ public enum QuestState
 }
 
 /// <summary>
-/// Misión del nivel: recuperar todas las gemas.
+/// Base de todas las misiones (máquina de estados NotStarted -> Active -> Completed).
 ///
-/// La activa el NPC al terminar su diálogo y se completa cuando
-/// GemCollector avisa que se juntaron todas las gemas.
+/// Se encarga de lo común: título, estado, eventos y entregar la recompensa.
+/// Cada misión concreta decide CUÁNDO se completa:
+/// - GemQuest: al juntar todas las gemas.
+/// - KillQuest: al eliminar a todos sus objetivos.
 /// </summary>
-public class Quest : MonoBehaviour
+public abstract class Quest : MonoBehaviour
 {
-    [SerializeField] private string _title = "Recuperá las 3 gemas";
-    [SerializeField] private GemCollector _gemCollector;
+    [SerializeField] private string _title = "Misión";
+    [SerializeField] private QuestReward _reward;
+
+    // Quién recibe la recompensa (el jugador).
+    [SerializeField] private GameObject _rewardReceiver;
 
     public string Title => _title;
+    public QuestReward Reward => _reward;
     public QuestState State { get; private set; } = QuestState.NotStarted;
 
+    // Progreso para mostrar en pantalla (por ejemplo "3/6"). Vacío si la misión no lo usa.
+    public virtual string ProgressText => string.Empty;
+
     public event Action<Quest> OnStateChanged;
-
-    private void OnEnable()
-    {
-        if (_gemCollector != null)
-        {
-            _gemCollector.OnAllGemsCollected += Complete;
-        }
-    }
-
-    private void OnDisable()
-    {
-        if (_gemCollector != null)
-        {
-            _gemCollector.OnAllGemsCollected -= Complete;
-        }
-    }
+    public event Action<Quest> OnProgressChanged;
 
     public void Begin()
     {
@@ -47,14 +41,28 @@ public class Quest : MonoBehaviour
             return;
 
         ChangeState(QuestState.Active);
+        OnBegin();
     }
 
-    private void Complete()
+    // Por si la misión ya está cumplida al aceptarla.
+    protected virtual void OnBegin() { }
+
+    protected void Complete()
     {
         if (State != QuestState.Active)
             return;
 
         ChangeState(QuestState.Completed);
+
+        if (_reward != null && _rewardReceiver != null)
+        {
+            _reward.Apply(_rewardReceiver);
+        }
+    }
+
+    protected void NotifyProgress()
+    {
+        OnProgressChanged?.Invoke(this);
     }
 
     private void ChangeState(QuestState newState)

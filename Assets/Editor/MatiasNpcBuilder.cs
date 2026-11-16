@@ -61,32 +61,48 @@ public static class MatiasNpcBuilder
             return false;
         }
 
-        // 1. Diálogos.
-        DialogueData intro = GetDialogue("Npc_Intro", new[]
+        // 1. Diálogos (la cantidad de gemas la define MatiasGemLevelBuilder según los cofres).
+        int gems = player.GetComponent<GemCollector>().RequiredGems;
+
+        DialogueData intro = GetDialogue("Npc_Intro", NpcName, new[]
         {
             $"¡Hola, viajero! Soy {NpcName}, el guardián de esta isla.",
-            "Unas criaturas robaron las tres gemas sagradas y las escondieron en cofres por toda la isla.",
-            "Sin las gemas, el portal de la cima no se abre... y nadie puede salir de acá.",
-            "¿Me ayudás? Recuperá las 3 gemas. Apretá M para ver el mapa: los cofres están marcados en amarillo.",
-            "Cuidado con los enemigos: clic izquierdo para atacar, clic derecho para defenderte y Q para tomar pociones. ¡Suerte!",
+            $"El Rey Slime robó las {gems} gemas sagradas y las escondió en cofres por toda la isla.",
+            "Sin las gemas no se abre la Puerta de la Cima, y allá arriba está el único portal para salir de acá.",
+            "Empezá por la playa. Con tu primera gema se abre la cueva del oeste, y con 2 Brutus te deja cruzar el puente del norte.",
+            "Si querés hacerte más fuerte antes de enfrentar al Rey Slime, buscá a Lila, a Tito y a Roco: tienen trabajos para vos.",
+            "Apretá M para ver el mapa: los cofres están en amarillo. Clic izquierdo ataca, 1/2 cambia de arma, clic derecho te defiende y Q toma pociones. ¡Suerte!",
         });
 
-        DialogueData inProgress = GetDialogue("Npc_InProgress", new[]
+        DialogueData inProgress = GetDialogue("Npc_InProgress", NpcName, new[]
         {
             "¡Todavía te faltan gemas! Buscá los cofres amarillos en el mapa (M).",
-            "Si te lastiman, tomá una poción con Q.",
+            "Acordate: la cueva del oeste se abre con 1 gema y Brutus, el del puente del norte, pide 2.",
         });
 
-        DialogueData completed = GetDialogue("Npc_Completed", new[]
+        DialogueData completed = GetDialogue("Npc_Completed", NpcName, new[]
         {
-            "¡Lo lograste! Las tres gemas brillan otra vez.",
-            "El portal de la cima ya está abierto. Seguí la luz celeste y volvé a casa. ¡Gracias, héroe!",
+            $"¡Tenés las {gems} gemas! La Puerta de la Cima ya se abrió.",
+            "Subí y derrotá al Rey Slime: cuando caiga, el portal se va a encender. ¡Vos podés!",
         });
 
         // 2. Misión.
-        GameObject questObject = G.FindByName(scene, "Quest_Gemas") ?? new GameObject("Quest_Gemas");
-        Quest quest = G.GetOrAdd<Quest>(questObject);
-        G.SetReference(quest, "_gemCollector", player.GetComponent<GemCollector>());
+        // Se recrea siempre: Quest pasó a ser una clase base abstracta y la misión de gemas ahora es GemQuest.
+        GameObject oldQuest = G.FindByName(scene, "Quest_Gemas");
+
+        if (oldQuest != null)
+        {
+            Object.DestroyImmediate(oldQuest);
+        }
+
+        GameObject questObject = new GameObject("Quest_Gemas");
+        SceneManager.MoveGameObjectToScene(questObject, scene);
+
+        GemQuest quest = questObject.AddComponent<GemQuest>();
+        SerializedObject questData = new SerializedObject(quest);
+        questData.FindProperty("_title").stringValue = $"Recuperá las {gems} gemas";
+        questData.FindProperty("_gemCollector").objectReferenceValue = player.GetComponent<GemCollector>();
+        questData.ApplyModifiedPropertiesWithoutUndo();
 
         // 3. Caja de diálogo.
         DialogueUI dialogueUI = BuildDialogueUI(scene);
@@ -130,26 +146,27 @@ public static class MatiasNpcBuilder
         return true;
     }
 
-    // Crea el diálogo solo si no existe: si después lo editás en el Inspector, no se pisa.
-    private static DialogueData GetDialogue(string name, string[] lines)
+    // Crea o actualiza el asset del diálogo con estos textos.
+    // Ojo: si lo editás en el Inspector, volver a correr el builder pisa esos cambios.
+    internal static DialogueData GetDialogue(string name, string speaker, string[] lines)
     {
         string path = $"{DialogueFolder}/{name}.asset";
         DialogueData dialogue = AssetDatabase.LoadAssetAtPath<DialogueData>(path);
 
-        if (dialogue != null)
-            return dialogue;
+        if (dialogue == null)
+        {
+            if (!AssetDatabase.IsValidFolder("Assets/Data"))
+                AssetDatabase.CreateFolder("Assets", "Data");
 
-        if (!AssetDatabase.IsValidFolder("Assets/Data"))
-            AssetDatabase.CreateFolder("Assets", "Data");
+            if (!AssetDatabase.IsValidFolder(DialogueFolder))
+                AssetDatabase.CreateFolder("Assets/Data", "Dialogues");
 
-        if (!AssetDatabase.IsValidFolder(DialogueFolder))
-            AssetDatabase.CreateFolder("Assets/Data", "Dialogues");
-
-        dialogue = ScriptableObject.CreateInstance<DialogueData>();
-        AssetDatabase.CreateAsset(dialogue, path);
+            dialogue = ScriptableObject.CreateInstance<DialogueData>();
+            AssetDatabase.CreateAsset(dialogue, path);
+        }
 
         SerializedObject so = new SerializedObject(dialogue);
-        so.FindProperty("_speakerName").stringValue = NpcName;
+        so.FindProperty("_speakerName").stringValue = speaker;
 
         SerializedProperty linesProperty = so.FindProperty("_lines");
         linesProperty.arraySize = lines.Length;
