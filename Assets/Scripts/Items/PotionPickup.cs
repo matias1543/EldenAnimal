@@ -22,6 +22,14 @@ public class PotionPickup : MonoBehaviour
 
     private Vector3 _visualStart;
 
+    /// <summary>
+    /// Define qué poción es. Lo usa EnemyDrop al soltarla, antes de que corra Start.
+    /// </summary>
+    public void Init(PotionData data)
+    {
+        _data = data;
+    }
+
     private void Start()
     {
         if (_visual != null)

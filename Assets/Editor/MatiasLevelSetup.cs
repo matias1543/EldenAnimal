@@ -115,6 +115,76 @@ public static class MatiasLevelSetup
         Debug.Log("Nivel Matías preparado: Player de Marcos + HUD, enemigos en layer Enemy con feedback, Slime prefab y escena en Build Settings.");
     }
 
+    /// <summary>
+    /// Reemplaza el Player y el HUD de TestMatias por las versiones actuales de TestMarcos
+    /// (por ejemplo, con la lanza y el cambio de arma) y vuelve a armar el contenido del nivel
+    /// (gemas, pociones, escudo, NPC y minimapa) sobre el Player nuevo.
+    /// TestMarcos no se guarda: su archivo queda intacto.
+    /// </summary>
+    [MenuItem("Tools/Elden Animal/Actualizar Player de Marcos")]
+    internal static void UpdatePlayerFromMarcos()
+    {
+        if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+            return;
+
+        Scene matiasScene = EditorSceneManager.OpenScene(MatiasScenePath, OpenSceneMode.Single);
+        Scene marcosScene = EditorSceneManager.OpenScene(MarcosScenePath, OpenSceneMode.Additive);
+
+        GameObject newPlayer = FindRoot<PlayerMovement>(marcosScene);
+        GameObject newHud = FindRoot<HealthBar>(marcosScene);
+        GameObject oldPlayer = FindRoot<PlayerMovement>(matiasScene);
+        GameObject oldHud = FindRoot<HealthBar>(matiasScene);
+
+        if (newPlayer == null || newHud == null || oldPlayer == null)
+        {
+            Debug.LogError("No se encontró el Player/HUD en TestMarcos o el Player en TestMatias.");
+            EditorSceneManager.CloseScene(marcosScene, true);
+            return;
+        }
+
+        Vector3 spawnPosition = oldPlayer.transform.position;
+        Quaternion spawnRotation = oldPlayer.transform.rotation;
+
+        Object.DestroyImmediate(oldPlayer);
+
+        if (oldHud != null)
+        {
+            Object.DestroyImmediate(oldHud);
+        }
+
+        // Juntos, para conservar las referencias HUD -> Player.
+        SceneManager.MoveGameObjectToScene(newPlayer, matiasScene);
+        SceneManager.MoveGameObjectToScene(newHud, matiasScene);
+        newPlayer.transform.SetPositionAndRotation(spawnPosition, spawnRotation);
+
+        // Misma cámara que Marcos (ángulo, giro, distancia), apuntando a nuestro Player.
+        IsometricCamera marcosCamera = FindInScene<IsometricCamera>(marcosScene).FirstOrDefault();
+
+        foreach (IsometricCamera cam in FindInScene<IsometricCamera>(matiasScene))
+        {
+            if (marcosCamera != null)
+            {
+                EditorUtility.CopySerialized(marcosCamera, cam);
+            }
+
+            SerializedObject so = new SerializedObject(cam);
+            so.FindProperty("_target").objectReferenceValue = newPlayer.transform;
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        EditorSceneManager.CloseScene(marcosScene, true);
+
+        // Gemas, interacción, pociones, escudo, NPC y minimapa sobre el Player nuevo.
+        if (!MatiasLevelContentBuilder.BuildAll(matiasScene))
+            return;
+
+        EditorSceneManager.MarkSceneDirty(matiasScene);
+        EditorSceneManager.SaveScene(matiasScene);
+        AssetDatabase.SaveAssets();
+
+        Debug.Log("Player actualizado con la versión de TestMarcos y nivel rearmado.");
+    }
+
     // Devuelve el objeto raíz que contiene el componente T dentro de la escena.
     private static GameObject FindRoot<T>(Scene scene) where T : Component
     {

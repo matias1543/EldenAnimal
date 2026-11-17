@@ -1,4 +1,5 @@
 
+using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -32,7 +33,8 @@ public static class MatiasGemLevelBuilder
     {
         ("Chest_Playa",  new Vector3(34f, -2.5f, -56f), new[] { "CRAB (4)", "CRAB (5)", "CRAB (6)", "Slime" }),
         ("Chest_Camino", new Vector3(37f,  0f,   -2f),  new[] { "CRAB", "CRAB (1)", "TurtleShellPolyart" }),
-        ("Chest_Puente", new Vector3(25f,  0f,   31f),  new[] { "CRAB (2)", "CRAB (3)", "Octopus" }),
+        // Orilla Norte: se llega cruzando el puente que custodia Brutus (pide 2 gemas).
+        ("Chest_Puente", new Vector3(38f,  0f,   40f),  new[] { "CRAB (2)", "CRAB (3)", "Octopus" }),
     };
 
     [MenuItem("Tools/Elden Animal/Armar nivel de gemas")]
@@ -80,7 +82,30 @@ public static class MatiasGemLevelBuilder
         // Todo lo que se coloque tiene que ser alcanzable caminando desde el inicio.
         ReachableOrigin = SampleNavMesh(spawn);
 
-        foreach ((string chestName, Vector3 approx, string[] guards) in Zones)
+        List<(string chest, Vector3 position, string[] guards)> zones = Zones.ToList();
+
+        // 4.ª gema en la zona oeste (detrás de la cueva), si quedó conectada.
+        // Sus guardias son el grupo Bosque_Oeste, que se crea más adelante.
+        if (MatiasSideQuestBuilder.TryGetWestChestSpot(out Vector3 westSpot))
+        {
+            zones.Add(("Chest_Oeste", westSpot, new string[0]));
+        }
+        else
+        {
+            GameObject oldWestChest = FindByName(scene, "Chest_Oeste");
+
+            if (oldWestChest != null)
+            {
+                Object.DestroyImmediate(oldWestChest);
+            }
+        }
+
+        // Hacen falta tantas gemas como cofres haya.
+        SerializedObject collectorData = new SerializedObject(collector);
+        collectorData.FindProperty("_requiredGems").intValue = zones.Count;
+        collectorData.ApplyModifiedPropertiesWithoutUndo();
+
+        foreach ((string chestName, Vector3 approx, string[] guards) in zones)
         {
             Vector3 chestPosition = SampleReachable(approx);
             GameObject chest = FindByName(scene, chestName);
@@ -403,7 +428,7 @@ public static class MatiasGemLevelBuilder
     // Punto de inicio del jugador sobre el NavMesh (lo fija Build).
     internal static Vector3? ReachableOrigin;
 
-    private static readonly float[] HeightProbes = { 0f, -2.5f, 2.5f, -5f };
+    private static readonly float[] HeightProbes = { 0f, -2.5f, 2.5f, -5f, 5f };
 
     /// <summary>
     /// Como SampleNavMesh, pero solo acepta puntos a los que se llega caminando

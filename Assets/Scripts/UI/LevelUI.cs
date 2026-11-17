@@ -17,6 +17,12 @@ public class LevelUI : MonoBehaviour
     [SerializeField] private Portal _portal;
     [SerializeField] private LevelFlow _levelFlow;
     [SerializeField] private PotionBag _potionBag;
+    [SerializeField] private Quest _quest;
+    [SerializeField] private DialogueUI _dialogueUI;
+    [SerializeField] private PathLock[] _pathLocks = new PathLock[0];
+    [SerializeField] private BossSlime _boss;
+    [SerializeField] private Quest[] _sideQuests = new Quest[0];
+    [SerializeField] private Text _sideQuestsText;
 
     [Header("Texts")]
     [SerializeField] private Text _gemsText;
@@ -39,6 +45,9 @@ public class LevelUI : MonoBehaviour
     // Cantidad anterior, para distinguir si se juntó o se usó una poción.
     private int _lastPotionCount;
 
+    // Elemento al alcance del jugador, para volver a mostrar su texto al cerrar un diálogo.
+    private IInteractable _focused;
+
     private void Awake()
     {
         _messageWait = new WaitForSecondsRealtime(_messageDuration);
@@ -55,6 +64,28 @@ public class LevelUI : MonoBehaviour
             _potionBag.OnPotionsChanged += HandlePotionsChanged;
             _potionBag.OnPotionUsed += HandlePotionUsed;
             _potionBag.OnHealthAlreadyFull += HandleHealthAlreadyFull;
+        }
+
+        if (_quest != null) _quest.OnStateChanged += HandleQuestChanged;
+
+        if (_dialogueUI != null)
+        {
+            _dialogueUI.OnOpened += HandleDialogueOpened;
+            _dialogueUI.OnClosed += HandleDialogueClosed;
+        }
+
+        foreach (PathLock pathLock in _pathLocks)
+        {
+            if (pathLock != null) pathLock.OnOpened += HandleLockOpened;
+        }
+
+        if (_boss != null) _boss.OnEnraged += HandleBossEnraged;
+
+        foreach (Quest sideQuest in _sideQuests)
+        {
+            if (sideQuest == null) continue;
+            sideQuest.OnStateChanged += HandleSideQuestStateChanged;
+            sideQuest.OnProgressChanged += HandleSideQuestProgress;
         }
 
         if (_levelFlow != null)
@@ -80,6 +111,28 @@ public class LevelUI : MonoBehaviour
             _potionBag.OnPotionsChanged -= HandlePotionsChanged;
             _potionBag.OnPotionUsed -= HandlePotionUsed;
             _potionBag.OnHealthAlreadyFull -= HandleHealthAlreadyFull;
+        }
+
+        if (_quest != null) _quest.OnStateChanged -= HandleQuestChanged;
+
+        if (_dialogueUI != null)
+        {
+            _dialogueUI.OnOpened -= HandleDialogueOpened;
+            _dialogueUI.OnClosed -= HandleDialogueClosed;
+        }
+
+        foreach (PathLock pathLock in _pathLocks)
+        {
+            if (pathLock != null) pathLock.OnOpened -= HandleLockOpened;
+        }
+
+        if (_boss != null) _boss.OnEnraged -= HandleBossEnraged;
+
+        foreach (Quest sideQuest in _sideQuests)
+        {
+            if (sideQuest == null) continue;
+            sideQuest.OnStateChanged -= HandleSideQuestStateChanged;
+            sideQuest.OnProgressChanged -= HandleSideQuestProgress;
         }
 
         if (_levelFlow != null)
@@ -147,12 +200,87 @@ public class LevelUI : MonoBehaviour
 
     private void HandleFocusChanged(IInteractable interactable)
     {
+        _focused = interactable;
         _promptText.text = interactable != null ? interactable.Prompt : string.Empty;
+    }
+
+    private void HandleQuestChanged(Quest quest)
+    {
+        if (quest.State == QuestState.Active)
+        {
+            ShowMessage($"Nueva misión: {quest.Title}");
+        }
+
+        UpdateGemsText(_gemCollector != null ? _gemCollector.Gems : 0, _gemCollector != null ? _gemCollector.RequiredGems : 0);
+    }
+
+    private void HandleDialogueOpened()
+    {
+        _promptText.text = string.Empty;
+    }
+
+    private void HandleDialogueClosed()
+    {
+        _promptText.text = _focused != null ? _focused.Prompt : string.Empty;
     }
 
     private void HandlePortalActivated()
     {
-        ShowMessage("¡Tenés todas las gemas! El portal de la cima se abrió: seguí la luz");
+        ShowMessage("¡El portal de la cima se abrió! Seguí la luz");
+    }
+
+    private void HandleLockOpened(PathLock pathLock)
+    {
+        ShowMessage(pathLock.OpenedMessage);
+    }
+
+    private void HandleBossEnraged()
+    {
+        ShowMessage($"¡El {_boss.BossName} se enfureció y llamó refuerzos!");
+    }
+
+    private void HandleSideQuestStateChanged(Quest quest)
+    {
+        if (quest.State == QuestState.Active)
+        {
+            ShowMessage($"Nueva misión: {quest.Title}");
+        }
+        else if (quest.State == QuestState.Completed)
+        {
+            string reward = quest.Reward != null ? quest.Reward.Description : string.Empty;
+            ShowMessage($"¡Misión cumplida! {reward}");
+        }
+
+        RefreshSideQuestsText();
+    }
+
+    private void HandleSideQuestProgress(Quest quest)
+    {
+        if (quest.State == QuestState.Active)
+        {
+            ShowMessage($"{quest.Title}: {quest.ProgressText}");
+        }
+
+        RefreshSideQuestsText();
+    }
+
+    // Lista de misiones secundarias en curso, debajo de las pociones.
+    private void RefreshSideQuestsText()
+    {
+        if (_sideQuestsText == null)
+            return;
+
+        System.Text.StringBuilder builder = new System.Text.StringBuilder();
+
+        foreach (Quest quest in _sideQuests)
+        {
+            if (quest != null && quest.State == QuestState.Active)
+            {
+                builder.Append("• ").Append(quest.Title).Append(' ').AppendLine(quest.ProgressText);
+            }
+        }
+
+        _sideQuestsText.text = builder.ToString();
     }
 
     private void HandleVictory() => ShowEndScreen("¡VICTORIA!");
@@ -168,6 +296,13 @@ public class LevelUI : MonoBehaviour
 
     private void UpdateGemsText(int current, int required)
     {
+        // Antes de aceptar la misión, el objetivo es ir a hablar con el NPC.
+        if (_quest != null && _quest.State == QuestState.NotStarted)
+        {
+            _gemsText.text = "Misión: hablá con el guardián";
+            return;
+        }
+
         _gemsText.text = $"Gemas: {current}/{required}";
     }
 
