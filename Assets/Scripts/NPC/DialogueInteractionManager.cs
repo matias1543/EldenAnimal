@@ -27,7 +27,9 @@ public class DialogueInteractionManager : MonoBehaviour
             _player = player.transform;
 
         // Buscamos los NPCs presentes en la escena.
-        _npcs = FindObjectsByType<NPCInteraction>(FindObjectsSortMode.None);
+        _npcs = FindObjectsByType<NPCInteraction>(
+            FindObjectsSortMode.None
+        );
     }
 
     private void Update()
@@ -41,7 +43,8 @@ public class DialogueInteractionManager : MonoBehaviour
         // mientras el jugador siga cerca del NPC.
         if (_isTalking)
         {
-            if (_activeNPC == null || !_activeNPC.CanInteract(_player))
+            if (_activeNPC == null ||
+                !_activeNPC.CanInteract(_player))
             {
                 CloseDialogue();
             }
@@ -68,7 +71,10 @@ public class DialogueInteractionManager : MonoBehaviour
             _activeNPC = nearestNPC;
             _isTalking = true;
 
-            _ui.ShowDialogue(_activeNPC.Dialogue.NPCName,_activeNPC.Dialogue.DialogueText);
+            _ui.ShowDialogue(
+                _activeNPC.Dialogue.NPCName,
+                _activeNPC.Dialogue.DialogueText
+            );
         }
     }
 
@@ -86,8 +92,11 @@ public class DialogueInteractionManager : MonoBehaviour
                 !npc.isActiveAndEnabled ||
                 !npc.CanInteract(_player))
                 continue;
-             
-            float distance = Vector3.Distance(_player.position, npc.transform.position);
+
+            float distance = Vector3.Distance(
+                _player.position,
+                npc.transform.position
+            );
 
             if (distance < nearestDistance)
             {

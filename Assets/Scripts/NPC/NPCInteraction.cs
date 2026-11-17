@@ -27,7 +27,10 @@ public class NPCInteraction : MonoBehaviour
         if (player == null)
             return false;
 
-        float distance = Vector3.Distance(transform.position, player.position);
+        float distance = Vector3.Distance(
+            transform.position,
+            player.position
+        );
 
         return distance <= _interactionRange;
     }
@@ -35,6 +38,9 @@ public class NPCInteraction : MonoBehaviour
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(transform.position,_interactionRange);
+        Gizmos.DrawWireSphere(
+            transform.position,
+            _interactionRange
+        );
     }
 }
