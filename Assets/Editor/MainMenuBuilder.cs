@@ -15,7 +15,7 @@ using UnityEngine.UI;
 public static class MainMenuBuilder
 {
     private const string ScenePath = "Assets/Scenes/MainMenu.unity";
-    private const string LevelScenePath = "Assets/Scenes/TestMatias.unity";
+    private const string LevelScenePath = "Assets/Scenes/Game.unity";
     private const string TitlePath = "Assets/Images/Menu/MenuTitle.png";
     private const string BackgroundPath = "Assets/Images/Menu/MenuBackground.png";
     private const string MusicPath = "Assets/Audio/Music/darren_hirst-gamer-music-140-bpm-355954.mp3";
@@ -147,7 +147,7 @@ public static class MainMenuBuilder
 
         // ---------- Referencias del MainMenu ----------
         var menuSo = new SerializedObject(menu);
-        menuSo.FindProperty("_levelSceneName").stringValue = "TestMatias";
+        menuSo.FindProperty("_levelSceneName").stringValue = "Game";
         menuSo.FindProperty("_mainPanel").objectReferenceValue = mainPanel.gameObject;
         menuSo.FindProperty("_creditsPanel").objectReferenceValue = creditsPanel.gameObject;
         menuSo.FindProperty("_optionsPanel").objectReferenceValue = optionsPanel.gameObject;

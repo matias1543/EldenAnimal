@@ -8,7 +8,7 @@ using UnityEngine.SceneManagement;
 public class MainMenu : MonoBehaviour
 {
     [Header("Escena del nivel (tiene que estar en Build Profiles)")]
-    [SerializeField] private string _levelSceneName = "TestMatias";
+    [SerializeField] private string _levelSceneName = "Game";
 
     [Header("Paneles")]
     [SerializeField] private GameObject _mainPanel;
