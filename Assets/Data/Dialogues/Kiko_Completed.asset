@@ -14,4 +14,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DialogueData
   _speakerName: Kiko
   _lines:
-  - "\xA1Buen trabajo! El puente sur est\xE1 abierto. Del otro lado te espera Lila."
+  - "\xA1Buen trabajo! El puente est\xE1 abierto. Del otro lado te espera un cofre."

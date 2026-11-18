@@ -1,4 +1,5 @@
 
+using System;
 using TMPro;
 using UnityEngine;
 
@@ -8,7 +9,7 @@ using UnityEngine;
 /// Es compartida por todos los NPCs.
 /// No maneja las entradas del jugador ni su distancia.
 /// </summary>
-public class DialogueUI : MonoBehaviour
+public class DialogueUI2 : MonoBehaviour
 {
     public static DialogueUI Instance { get; private set; }
 
@@ -27,7 +28,6 @@ public class DialogueUI : MonoBehaviour
             return;
         }
 
-        Instance = this;
 
         _interactionPrompt.SetActive(false);
         _dialoguePanel.SetActive(false);
@@ -74,5 +74,15 @@ public class DialogueUI : MonoBehaviour
     {
         if (Instance == this)
             Instance = null;
+    }
+
+    internal void ShowDialogue(object nPCName, object dialogueText)
+    {
+        throw new NotImplementedException();
+    }
+
+    internal void ShowDialogue(string nPCName, object dialogueText)
+    {
+        throw new NotImplementedException();
     }
 }

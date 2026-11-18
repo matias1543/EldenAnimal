@@ -18,13 +18,13 @@ public class BirdEnemy : EnemyTemplate
 
     // Altura a la que apunta sobre la posición del jugador (el pecho, no los pies).
     [SerializeField] private float _aimHeight = 1f;
-
+    private SimpleAudio _audio;
     private ObjectPool<Projectile> _pool;
 
     protected override void Awake()
     {
         base.Awake();
-
+        _audio = GetComponent<SimpleAudio>();
         _pool = new ObjectPool<Projectile>(
             createFunc: () => Instantiate(_projectilePrefab),
             actionOnGet: p => p.gameObject.SetActive(true),
@@ -58,6 +58,10 @@ public class BirdEnemy : EnemyTemplate
         if (_animator != null)
         {
             _animator.SetTrigger("Attack");
+        }
+        if (_audio != null)
+        {
+            _audio.PlayAttack();
         }
 
         Projectile projectile = _pool.Get();

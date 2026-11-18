@@ -1,7 +1,5 @@
 using UnityEngine;
 
-using UnityEngine;
-
 /// <summary>
 /// Cámara isométrica inspirada en TUNIC.
 ///

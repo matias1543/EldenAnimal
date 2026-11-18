@@ -11,16 +11,16 @@ public class SlimeEnemy : EnemyTemplate
 {
     [Header("Attack")]
     [SerializeField] private float _attackDamage = 5f;
-
-    // Referencia cacheada al componente que recibe daño del jugador.
-    // La buscamos una sola vez en Start para no llamar
-    // a GetComponent en cada ataque.
+    private SimpleAudio _audio;
     private IDamageable _playerDamageable;
+    protected override void Awake()
+    {
+        base.Awake();
 
+        _audio = GetComponent<SimpleAudio>();
+    }
     protected override void Start()
     {
-        // Ejecutamos el Start de EnemyTemplate,
-        // que busca al jugador por su tag.
         base.Start();
 
         if (_player != null)
@@ -31,13 +31,15 @@ public class SlimeEnemy : EnemyTemplate
 
     protected override void Attack()
     {
-        // Reproducimos la animación de ataque.
         if (_animator != null)
         {
             _animator.SetTrigger("Attack");
         }
+        if (_audio != null)
+        {
+            _audio.PlayAttack();
+        }
 
-        // Si el jugador puede recibir daño, lo atacamos.
         _playerDamageable?.TakeDamage(_attackDamage);
     }
 }

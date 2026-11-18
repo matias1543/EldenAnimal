@@ -6,11 +6,11 @@ using UnityEngine;
 /// Permite hablar únicamente con el NPC más cercano
 /// que se encuentre dentro de su rango.
 /// </summary>
-[RequireComponent(typeof(DialogueUI))]
+[RequireComponent(typeof(DialogueUI2))]
 public class DialogueInteractionManager : MonoBehaviour
 {
     private Transform _player;
-    private DialogueUI _ui;
+    private DialogueUI2 _ui;
     private NPCInteraction[] _npcs;
 
     private NPCInteraction _activeNPC;
@@ -18,7 +18,7 @@ public class DialogueInteractionManager : MonoBehaviour
 
     private void Start()
     {
-        _ui = GetComponent<DialogueUI>();
+        _ui = GetComponent<DialogueUI2>();
 
         GameObject player =
             GameObject.FindGameObjectWithTag("Player");

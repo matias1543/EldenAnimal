@@ -32,6 +32,9 @@ public class NpcDialogue : MonoBehaviour, IInteractable
     public string Prompt => $"E: Hablar con {_npcName}";
     public bool CanInteract => _dialogueUI != null && !_dialogueUI.IsBusy;
 
+    public string NPCName { get; internal set; }
+    public string DialogueText { get; internal set; }
+
     private void Awake()
     {
         _animator = GetComponentInChildren<Animator>();

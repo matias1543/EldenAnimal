@@ -5,18 +5,18 @@ using UnityEngine;
 /// Define los datos necesarios para interactuar
 /// con un NPC, incluyendo su rango de interacción.
 /// </summary>
-[RequireComponent(typeof(NPCDialogue))]
+[RequireComponent(typeof(NpcDialogue))]
 public class NPCInteraction : MonoBehaviour
 {
     [Header("Interaction Settings")]
     [SerializeField] private float _interactionRange = 3f;
 
     public float InteractionRange => _interactionRange;
-    public NPCDialogue Dialogue { get; private set; }
+    public NpcDialogue Dialogue { get; private set; }
 
     private void Awake()
     {
-        Dialogue = GetComponent<NPCDialogue>();
+        Dialogue = GetComponent<NpcDialogue>();
     }
 
     /// <summary>

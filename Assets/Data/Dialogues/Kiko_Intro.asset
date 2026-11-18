@@ -14,5 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DialogueData
   _speakerName: Kiko
   _lines:
-  - "\xA1Alto! Soy Kiko, guardia del puente sur."
-  - "Unos monstruos rondan la llanura. Elimin\xE1 a los 3 y te abro el paso al bosque."
+  - "\xA1Alto! Soy Kiko, guardia del puente."
+  - "Unos monstruos rondan la llanura. Elimin\xE1 a los 2 pajaros de arriba y te
+    abro el paso al puente."

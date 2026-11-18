@@ -28,7 +28,13 @@ public class ChargeEnemy : EnemyTemplate
     private float _nextChargeTime;
     private float _chargeEndTime;
     private bool _isCharging;
+    private SimpleAudio _audio;
+    protected override void Awake()
+    {
+        base.Awake();
 
+        _audio = GetComponent<SimpleAudio>();
+    }
     protected override void Start()
     {
         base.Start();
@@ -45,7 +51,6 @@ public class ChargeEnemy : EnemyTemplate
     {
         base.Update();
 
-        // Al terminar la embestida vuelve a su velocidad normal.
         if (_isCharging && Time.time >= _chargeEndTime)
         {
             _isCharging = false;
@@ -85,6 +90,10 @@ public class ChargeEnemy : EnemyTemplate
         if (_animator != null)
         {
             _animator.SetTrigger(AttackId);
+        }
+        if (_audio != null)
+        {
+            _audio.PlayAttack();
         }
 
         _playerDamageable?.TakeDamage(_attackDamage);
